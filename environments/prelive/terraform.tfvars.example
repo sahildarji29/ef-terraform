@@ -1,0 +1,96 @@
+# Prelive Environment Configuration
+# Copy this to terraform.tfvars and fill in your values
+
+aws_region = "us-east-1"
+environment = "prelive"
+cluster_name = "teal"
+
+# VPC Configuration - Use existing VPC (same or different VPC)
+vpc_id = "vpc-43a1cc24"  # Replace with your VPC ID
+
+# Subnet IDs - Replace with your actual subnet IDs
+public_subnet_ids = [
+  "subnet-xxx",  # Replace with actual subnet IDs
+  "subnet-yyy",
+]
+
+private_subnet_ids = [
+  "subnet-aaa",  # Replace with actual subnet IDs
+  "subnet-bbb",
+  "subnet-ccc",
+  "subnet-ddd",
+]
+
+# Domain Configuration
+domain = "app.prelive-eventfarm.com"
+api_domain = "api.prelive-eventfarm.com"
+login_domain = "login.prelive-eventfarm.com"
+base_domain = "prelive-eventfarm.com"
+
+# Service Scaling - Lower than production
+app_scale = 4
+api2_scale = 4
+worker_scale = 10
+urltopng_scale = 1
+
+# Docker Images (same as production)
+app_image = "membersuite/app:auth0"
+api2_image = "membersuite/api2:7.3.28"
+canvas_image = "membersuite/canvas:latest"
+process_job_worker_image = "membersuite/process-job-worker:8.4.5-dev"
+urltopng_image = "jasonraimondi/url-to-png:0.11.0"
+gearman_server_image = "artefactual/gearmand:1.1.19.1-alpine"
+scheduler_image = "membersuite/scheduler:1.6.0"
+
+# Resource Sizing (same as production)
+app_cpu = 2048
+app_memory = 4096
+api2_cpu = 1024
+api2_memory = 2048
+worker_cpu = 512
+worker_memory = 1024
+
+# CloudWatch Logs
+log_retention_days = 30
+
+# Service Discovery
+enable_service_discovery = true
+service_discovery_namespace = "prelive-eventfarm.local"
+
+# Auto Scaling - Lower max capacity than production
+enable_auto_scaling = true
+min_capacity = {
+  app    = 2
+  api2   = 2
+  worker = 3
+}
+max_capacity = {
+  app    = 8
+  api2   = 8
+  worker = 30
+}
+
+# Security
+allowed_cidr_blocks = ["0.0.0.0/0"]  # Restrict this in production
+
+# Database Security Groups (optional)
+# database_security_group_id = "sg-xxxxxxxxx"
+# mongodb_security_group_id  = "sg-xxxxxxxxx"
+
+# Database Configuration (for scheduler)
+# Note: Use AWS Secrets Manager instead of plain text passwords
+database_host = "34.235.208.58"  # Prelive database host
+database_name = "eventfarm_db_03"
+database_user = "eventfarm"
+# database_password = ""  # Use Secrets Manager instead
+
+# ACM Certificate (optional - use existing certificate ARN)
+# acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/xxxxx"
+
+# Tags
+tags = {
+  Project     = "EventFarm"
+  Environment = "prelive"
+  Team        = "Platform"
+}
+

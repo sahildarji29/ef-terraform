@@ -1,22 +1,25 @@
+# Same as main environment - copy from main
 variable "aws_region" {
   description = "AWS region for resources"
   type        = string
   default     = "us-east-1"
 }
 
-variable "cluster_name" {
-  description = "Name of the ECS cluster (e.g., blue, teal, lime)"
-  type        = string
-}
-
 variable "environment" {
-  description = "Environment name (prod, prelive, stage)"
+  description = "Environment name (prod, prelive, dev)"
   type        = string
+  default     = "prelive"
 }
 
-# VPC Configuration - Using existing VPC
+variable "cluster_name" {
+  description = "Name of the cluster (e.g., blue, teal, lime)"
+  type        = string
+  default     = "teal"
+}
+
+# VPC Configuration
 variable "vpc_id" {
-  description = "ID of the existing VPC (e.g., vpc-43a1cc24)"
+  description = "ID of the existing VPC"
   type        = string
 }
 
@@ -32,26 +35,30 @@ variable "private_subnet_ids" {
 
 # Domain Configuration
 variable "domain" {
-  description = "Main domain (e.g., app.eventfarm.com)"
+  description = "Main domain (e.g., app.prelive-eventfarm.com)"
   type        = string
+  default     = "app.prelive-eventfarm.com"
 }
 
 variable "api_domain" {
-  description = "API domain (e.g., api.eventfarm.com)"
+  description = "API domain (e.g., api.prelive-eventfarm.com)"
   type        = string
+  default     = "api.prelive-eventfarm.com"
 }
 
 variable "login_domain" {
-  description = "Login domain (e.g., login.eventfarm.com)"
+  description = "Login domain (e.g., login.prelive-eventfarm.com)"
   type        = string
+  default     = "login.prelive-eventfarm.com"
 }
 
 variable "base_domain" {
-  description = "Base domain (e.g., eventfarm.com)"
+  description = "Base domain (e.g., prelive-eventfarm.com)"
   type        = string
+  default     = "prelive-eventfarm.com"
 }
 
-# Service Scaling
+# Service Scaling - Prelive typically has lower scale
 variable "app_scale" {
   description = "Desired count for app service"
   type        = number
@@ -67,13 +74,13 @@ variable "api2_scale" {
 variable "worker_scale" {
   description = "Desired count for process-job-worker service"
   type        = number
-  default     = 20
+  default     = 10
 }
 
 variable "urltopng_scale" {
   description = "Desired count for urltopng service"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 # Docker Images
@@ -173,7 +180,7 @@ variable "enable_service_discovery" {
 variable "service_discovery_namespace" {
   description = "Service discovery namespace name"
   type        = string
-  default     = "eventfarm.local"
+  default     = "prelive-eventfarm.local"
 }
 
 # Auto Scaling
@@ -189,7 +196,7 @@ variable "min_capacity" {
   default = {
     app    = 2
     api2   = 2
-    worker = 5
+    worker = 3
   }
 }
 
@@ -197,9 +204,9 @@ variable "max_capacity" {
   description = "Maximum capacity for auto scaling"
   type        = map(number)
   default = {
-    app    = 10
-    api2   = 10
-    worker = 50
+    app    = 8
+    api2   = 8
+    worker = 30
   }
 }
 
@@ -229,7 +236,7 @@ variable "acm_certificate_arn" {
   default     = ""
 }
 
-# Database Configuration (for scheduler)
+# Database Configuration
 variable "database_host" {
   description = "MySQL database host"
   type        = string

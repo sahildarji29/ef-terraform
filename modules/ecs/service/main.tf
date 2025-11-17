@@ -21,16 +21,17 @@ resource "aws_ecs_service" "main" {
     }
   }
 
+
   dynamic "service_registries" {
-    for_each = var.enable_service_discovery && var.service_discovery_namespace_id != "" ? [1] : []
+    for_each = var.enable_service_discovery ? [1] : []
     content {
       registry_arn = aws_service_discovery_service.main[0].arn
     }
   }
 
-  depends_on = var.enable_service_discovery && var.service_discovery_namespace_id != "" ? [
-    aws_service_discovery_service.main[0]
-  ] : []
+  # Note: depends_on is not needed here because the service_registries block
+  # already references aws_service_discovery_service.main[0].arn, which creates
+  # an implicit dependency that Terraform will handle automatically.
 
   tags = merge(
     var.tags,
@@ -38,5 +39,11 @@ resource "aws_ecs_service" "main" {
       Name = var.service_name
     }
   )
+
+  # Ensure service is created before auto-scaling tries to reference it
+  # This lifecycle block helps ensure the service resource is fully created
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 

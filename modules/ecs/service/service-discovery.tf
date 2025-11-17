@@ -1,6 +1,6 @@
 # Service Discovery Service
 resource "aws_service_discovery_service" "main" {
-  count = var.enable_service_discovery && var.service_discovery_namespace_id != "" ? 1 : 0
+  count = var.enable_service_discovery ? 1 : 0
   name  = var.service_discovery_name != "" ? var.service_discovery_name : var.service_name
 
   dns_config {
@@ -13,8 +13,6 @@ resource "aws_service_discovery_service" "main" {
 
     routing_policy = "MULTIVALUE"
   }
-
-  health_check_grace_period_seconds = 30
 
   tags = var.tags
 }

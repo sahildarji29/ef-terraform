@@ -13,6 +13,11 @@ variable "private_subnet_ids" {
   type        = list(string)
 }
 
+variable "cluster_name" {
+  description = "Name of the cluster (for resource naming)"
+  type        = string
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)

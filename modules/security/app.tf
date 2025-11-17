@@ -1,7 +1,7 @@
-# Security Group for ECS Tasks (App, API2, Canvas, etc.)
-resource "aws_security_group" "ecs_tasks" {
-  name        = "${var.cluster_name}-ecs-tasks-sg"
-  description = "Security group for ECS Fargate tasks"
+# Security Group for App Service
+resource "aws_security_group" "app" {
+  name        = "${var.cluster_name}-app-sg"
+  description = "Security group for app service"
   vpc_id      = var.vpc_id
 
   ingress {
@@ -20,9 +20,11 @@ resource "aws_security_group" "ecs_tasks" {
     security_groups = [aws_security_group.alb.id]
   }
 
-  # Allow internal communication between services
+  # Note: Communication with API2 is handled via API2 security group allowing from app
+
+  # Allow communication with other app instances
   ingress {
-    description = "Internal communication"
+    description = "From other app instances"
     from_port   = 0
     to_port     = 65535
     protocol    = "tcp"
@@ -40,7 +42,8 @@ resource "aws_security_group" "ecs_tasks" {
   tags = merge(
     var.tags,
     {
-      Name = "${var.cluster_name}-ecs-tasks-sg"
+      Name    = "${var.cluster_name}-app-sg"
+      Service = "app"
     }
   )
 }

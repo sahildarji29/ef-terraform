@@ -8,6 +8,7 @@ module "network" {
   vpc_id            = var.vpc_id
   public_subnet_ids = var.public_subnet_ids
   private_subnet_ids = var.private_subnet_ids
+  cluster_name      = var.cluster_name
 
   tags = var.tags
 }
@@ -59,6 +60,35 @@ module "ecs_cluster" {
   tags = var.tags
 }
 
+# ACM Certificate - COMMENTED OUT (no domain yet)
+# resource "aws_acm_certificate" "main" {
+#   count            = var.acm_certificate_arn == "" ? 1 : 0
+#   domain_name      = var.domain
+#   validation_method = "DNS"
+#
+#   subject_alternative_names = [
+#     var.api_domain,
+#     var.login_domain,
+#     var.base_domain,
+#     "*.${var.base_domain}"
+#   ]
+#
+#   lifecycle {
+#     create_before_destroy = true
+#   }
+#
+#   tags = merge(
+#     var.tags,
+#     {
+#       Name = "${var.cluster_name}-cert"
+#     }
+#   )
+# }
+
+# locals {
+#   certificate_arn = var.acm_certificate_arn != "" ? var.acm_certificate_arn : aws_acm_certificate.main[0].arn
+# }
+
 # ALB Module
 module "alb" {
   source = "../../modules/ecs/alb"
@@ -68,42 +98,18 @@ module "alb" {
   subnet_ids                = module.network.public_subnet_ids
   security_group_id         = module.security.alb_security_group_id
   enable_deletion_protection = var.environment == "prod"
-  certificate_arn            = local.certificate_arn
+  # certificate_arn            = local.certificate_arn  # COMMENTED OUT (no domain yet)
+  certificate_arn            = ""  # Empty for now
   domain                     = var.domain
   api_domain                 = var.api_domain
   login_domain               = var.login_domain
   base_domain                = var.base_domain
 
+  # depends_on = [
+  #   aws_acm_certificate.main
+  # ]  # COMMENTED OUT (no certificate)
+
   tags = var.tags
-}
-
-# ACM Certificate (optional - only if not provided)
-resource "aws_acm_certificate" "main" {
-  count            = var.acm_certificate_arn == "" ? 1 : 0
-  domain_name      = var.domain
-  validation_method = "DNS"
-
-  subject_alternative_names = [
-    var.api_domain,
-    var.login_domain,
-    var.base_domain,
-    "*.${var.base_domain}"
-  ]
-
-  lifecycle {
-    create_before_destroy = true
-  }
-
-  tags = merge(
-    var.tags,
-    {
-      Name = "${var.cluster_name}-cert"
-    }
-  )
-}
-
-locals {
-  certificate_arn = var.acm_certificate_arn != "" ? var.acm_certificate_arn : aws_acm_certificate.main[0].arn
 }
 
 # Task Definitions
@@ -395,7 +401,7 @@ module "service_app" {
   task_definition_arn = module.task_app.task_definition_arn
   desired_count      = var.app_scale
   subnet_ids         = module.network.private_subnet_ids
-  security_group_ids = [module.security.ecs_tasks_security_group_id]
+  security_group_ids = [module.security.app_security_group_id]
   assign_public_ip   = false
   target_group_arn   = module.alb.target_group_app_arn
   container_name     = "app"
@@ -403,6 +409,10 @@ module "service_app" {
   enable_auto_scaling = var.enable_auto_scaling
   min_capacity       = var.min_capacity["app"]
   max_capacity       = var.max_capacity["app"]
+
+  depends_on = [
+    module.alb
+  ]
 
   tags = var.tags
 }
@@ -417,7 +427,7 @@ module "service_api2" {
   task_definition_arn = module.task_api2.task_definition_arn
   desired_count      = var.api2_scale
   subnet_ids         = module.network.private_subnet_ids
-  security_group_ids = [module.security.ecs_tasks_security_group_id]
+  security_group_ids = [module.security.api2_security_group_id]
   assign_public_ip   = false
   enable_service_discovery = var.enable_service_discovery
   service_discovery_namespace_id = module.ecs_cluster.service_discovery_namespace_id
@@ -439,7 +449,7 @@ module "service_worker" {
   task_definition_arn = module.task_worker.task_definition_arn
   desired_count      = var.worker_scale
   subnet_ids         = module.network.private_subnet_ids
-  security_group_ids = [module.security.ecs_internal_security_group_id]
+  security_group_ids = [module.security.worker_security_group_id]
   assign_public_ip   = false
   enable_service_discovery = var.enable_service_discovery
   service_discovery_namespace_id = module.ecs_cluster.service_discovery_namespace_id
@@ -461,7 +471,7 @@ module "service_canvas" {
   task_definition_arn = module.task_canvas.task_definition_arn
   desired_count      = 1
   subnet_ids         = module.network.private_subnet_ids
-  security_group_ids = [module.security.ecs_tasks_security_group_id]
+  security_group_ids = [module.security.canvas_security_group_id]
   assign_public_ip   = false
   enable_service_discovery = var.enable_service_discovery
   service_discovery_namespace_id = module.ecs_cluster.service_discovery_namespace_id
@@ -480,7 +490,7 @@ module "service_urltopng" {
   task_definition_arn = module.task_urltopng.task_definition_arn
   desired_count      = var.urltopng_scale
   subnet_ids         = module.network.private_subnet_ids
-  security_group_ids = [module.security.ecs_tasks_security_group_id]
+  security_group_ids = [module.security.urltopng_security_group_id]
   assign_public_ip   = false
   enable_service_discovery = var.enable_service_discovery
   service_discovery_namespace_id = module.ecs_cluster.service_discovery_namespace_id
@@ -499,7 +509,7 @@ module "service_gearman" {
   task_definition_arn = module.task_gearman.task_definition_arn
   desired_count      = 1
   subnet_ids         = module.network.private_subnet_ids
-  security_group_ids = [module.security.ecs_internal_security_group_id]
+  security_group_ids = [module.security.gearman_security_group_id]
   assign_public_ip   = false
   enable_service_discovery = var.enable_service_discovery
   service_discovery_namespace_id = module.ecs_cluster.service_discovery_namespace_id
@@ -518,7 +528,7 @@ module "service_scheduler" {
   task_definition_arn = module.task_scheduler.task_definition_arn
   desired_count      = 1
   subnet_ids         = module.network.private_subnet_ids
-  security_group_ids = [module.security.ecs_internal_security_group_id]
+  security_group_ids = [module.security.scheduler_security_group_id]
   assign_public_ip   = false
   enable_service_discovery = var.enable_service_discovery
   service_discovery_namespace_id = module.ecs_cluster.service_discovery_namespace_id

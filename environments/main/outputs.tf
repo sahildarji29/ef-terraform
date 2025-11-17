@@ -55,8 +55,8 @@ output "log_groups" {
   value       = module.monitoring.log_group_names
 }
 
-output "certificate_arn" {
-  description = "ARN of the ACM certificate"
-  value       = local.certificate_arn
-}
+# output "certificate_arn" {
+#   description = "ARN of the ACM certificate"
+#   value       = local.certificate_arn
+# }  # COMMENTED OUT (no certificate/domain yet)
 

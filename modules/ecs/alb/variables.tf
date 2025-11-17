@@ -55,8 +55,9 @@ variable "access_logs_prefix" {
 }
 
 variable "certificate_arn" {
-  description = "ARN of the ACM certificate"
+  description = "ARN of the ACM certificate (optional - can be empty if no domain)"
   type        = string
+  default     = ""
 }
 
 variable "domain" {

@@ -23,3 +23,26 @@ resource "aws_iam_role_policy_attachment" "ecs_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# Additional policy for Secrets Manager access (for Docker Hub credentials)
+resource "aws_iam_role_policy" "ecs_execution_secrets" {
+  name = "${var.cluster_name}-ecs-execution-secrets-policy"
+  role = aws_iam_role.ecs_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:*:*:secret:${var.cluster_name}-dockerhub-credentials-*",
+          "arn:aws:secretsmanager:*:*:secret:dockerhub-credentials-*"
+        ]
+      }
+    ]
+  })
+}
+

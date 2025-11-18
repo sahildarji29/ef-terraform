@@ -1,6 +1,36 @@
 # Data source for current AWS account
 data "aws_caller_identity" "current" {}
 
+# Docker Hub Credentials Secret
+# Store Docker Hub credentials in Secrets Manager for ECS to pull private images
+resource "aws_secretsmanager_secret" "dockerhub" {
+  count = var.dockerhub_secret_arn == "" && var.dockerhub_username != "" ? 1 : 0
+  
+  name        = "${var.cluster_name}-dockerhub-credentials"
+  description = "Docker Hub credentials for pulling private images"
+
+  tags = merge(
+    var.tags,
+    {
+      Name = "${var.cluster_name}-dockerhub-credentials"
+    }
+  )
+}
+
+resource "aws_secretsmanager_secret_version" "dockerhub" {
+  count = var.dockerhub_secret_arn == "" && var.dockerhub_username != "" ? 1 : 0
+  
+  secret_id = aws_secretsmanager_secret.dockerhub[0].id
+  secret_string = jsonencode({
+    username = var.dockerhub_username
+    password = var.dockerhub_password
+  })
+}
+
+locals {
+  dockerhub_secret_arn = var.dockerhub_secret_arn != "" ? var.dockerhub_secret_arn : (var.dockerhub_username != "" ? aws_secretsmanager_secret.dockerhub[0].arn : "")
+}
+
 # Network Module - Uses existing VPC
 module "network" {
   source = "../../modules/network"
@@ -98,8 +128,7 @@ module "alb" {
   subnet_ids                = module.network.public_subnet_ids
   security_group_id         = module.security.alb_security_group_id
   enable_deletion_protection = var.environment == "prod"
-  # certificate_arn            = local.certificate_arn  # COMMENTED OUT (no domain yet)
-  certificate_arn            = ""  # Empty for now
+  certificate_arn            = ""  # Empty - no certificate/domain yet
   domain                     = var.domain
   api_domain                 = var.api_domain
   login_domain               = var.login_domain
@@ -131,6 +160,9 @@ module "task_app" {
       containerPort = 80
       protocol      = "tcp"
     }]
+    repositoryCredentials = local.dockerhub_secret_arn != "" ? {
+      credentialsParameter = local.dockerhub_secret_arn
+    } : null
     environment = [
       { name = "EF_ENV", value = var.environment },
       { name = "CLUSTER", value = var.cluster_name },
@@ -173,6 +205,13 @@ module "task_api2" {
     name      = "api2"
     image     = var.api2_image
     essential = true
+    portMappings = [{
+      containerPort = 80
+      protocol      = "tcp"
+    }]
+    repositoryCredentials = local.dockerhub_secret_arn != "" ? {
+      credentialsParameter = local.dockerhub_secret_arn
+    } : null
     environment = [
       { name = "EF_ENV", value = var.environment },
       { name = "CLUSTER", value = var.cluster_name },
@@ -219,6 +258,9 @@ module "task_worker" {
       "php",
       "/Domain/src/Infrastructure/Console/process-job.php"
     ]
+    repositoryCredentials = local.dockerhub_secret_arn != "" ? {
+      credentialsParameter = local.dockerhub_secret_arn
+    } : null
     environment = [
       { name = "EF_ENV", value = var.environment },
       { name = "CLUSTER", value = var.cluster_name },
@@ -256,6 +298,9 @@ module "task_canvas" {
       containerPort = 80
       protocol      = "tcp"
     }]
+    repositoryCredentials = local.dockerhub_secret_arn != "" ? {
+      credentialsParameter = local.dockerhub_secret_arn
+    } : null
     environment = [
       { name = "EF_ENV", value = var.environment },
       { name = "CLUSTER", value = var.cluster_name },
@@ -291,6 +336,9 @@ module "task_urltopng" {
       containerPort = 3000
       protocol      = "tcp"
     }]
+    repositoryCredentials = local.dockerhub_secret_arn != "" ? {
+      credentialsParameter = local.dockerhub_secret_arn
+    } : null
     environment = [
       { name = "NODE_ENV", value = "production" },
       { name = "STORAGE_PROVIDER", value = "s3" },
@@ -328,6 +376,9 @@ module "task_gearman" {
       containerPort = 4730
       protocol      = "tcp"
     }]
+    repositoryCredentials = local.dockerhub_secret_arn != "" ? {
+      credentialsParameter = local.dockerhub_secret_arn
+    } : null
     environment = [
       { name = "VERBOSE", value = "INFO" },
     ]
@@ -373,6 +424,9 @@ module "task_scheduler" {
       containerPort = 4000
       protocol      = "tcp"
     }]
+    repositoryCredentials = local.dockerhub_secret_arn != "" ? {
+      credentialsParameter = local.dockerhub_secret_arn
+    } : null
     environment = [
       { name = "EF_ENV", value = var.environment },
       { name = "CLUSTER", value = var.cluster_name },
@@ -429,12 +483,19 @@ module "service_api2" {
   subnet_ids         = module.network.private_subnet_ids
   security_group_ids = [module.security.api2_security_group_id]
   assign_public_ip   = false
+  target_group_arn   = module.alb.target_group_api2_arn
+  container_name     = "api2"
+  container_port     = 80
   enable_service_discovery = var.enable_service_discovery
   service_discovery_namespace_id = module.ecs_cluster.service_discovery_namespace_id
   service_discovery_name = "api2"
   enable_auto_scaling = var.enable_auto_scaling
   min_capacity       = var.min_capacity["api2"]
   max_capacity       = var.max_capacity["api2"]
+
+  depends_on = [
+    module.alb
+  ]
 
   tags = var.tags
 }
@@ -473,9 +534,16 @@ module "service_canvas" {
   subnet_ids         = module.network.private_subnet_ids
   security_group_ids = [module.security.canvas_security_group_id]
   assign_public_ip   = false
+  target_group_arn   = module.alb.target_group_canvas_arn
+  container_name     = "canvas"
+  container_port     = 80
   enable_service_discovery = var.enable_service_discovery
   service_discovery_namespace_id = module.ecs_cluster.service_discovery_namespace_id
   service_discovery_name = "canvas"
+
+  depends_on = [
+    module.alb
+  ]
 
   tags = var.tags
 }
@@ -492,9 +560,16 @@ module "service_urltopng" {
   subnet_ids         = module.network.private_subnet_ids
   security_group_ids = [module.security.urltopng_security_group_id]
   assign_public_ip   = false
+  target_group_arn   = module.alb.target_group_urltopng_arn
+  container_name     = "urltopng"
+  container_port     = 3000
   enable_service_discovery = var.enable_service_discovery
   service_discovery_namespace_id = module.ecs_cluster.service_discovery_namespace_id
   service_discovery_name = "urltopng"
+
+  depends_on = [
+    module.alb
+  ]
 
   tags = var.tags
 }

@@ -119,6 +119,27 @@ variable "scheduler_image" {
   default     = "membersuite/scheduler:1.6.0"
 }
 
+# Docker Hub Credentials (for private images)
+variable "dockerhub_username" {
+  description = "Docker Hub username for private repository access"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "dockerhub_password" {
+  description = "Docker Hub password or access token for private repository access"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "dockerhub_secret_arn" {
+  description = "ARN of existing Secrets Manager secret for Docker Hub credentials (optional - will create if not provided)"
+  type        = string
+  default     = ""
+}
+
 # Resource Sizing
 variable "app_cpu" {
   description = "CPU units for app task (1024 = 1 vCPU)"

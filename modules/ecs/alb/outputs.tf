@@ -28,6 +28,16 @@ output "target_group_api2_arn" {
   value       = aws_lb_target_group.api2.arn
 }
 
+output "target_group_canvas_arn" {
+  description = "ARN of the canvas target group"
+  value       = aws_lb_target_group.canvas.arn
+}
+
+output "target_group_urltopng_arn" {
+  description = "ARN of the urltopng target group"
+  value       = aws_lb_target_group.urltopng.arn
+}
+
 output "alb_logs_bucket" {
   description = "S3 bucket for ALB logs (if created)"
   value       = var.enable_access_logs && var.access_logs_bucket == "" ? aws_s3_bucket.alb_logs[0].id : var.access_logs_bucket

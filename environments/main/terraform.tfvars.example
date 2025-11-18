@@ -33,7 +33,7 @@ api2_scale = 4
 worker_scale = 20
 urltopng_scale = 2
 
-# Docker Images
+# Docker Images (private repositories on Docker Hub)
 app_image = "membersuite/app:auth0"
 api2_image = "membersuite/api2:7.3.28"
 canvas_image = "membersuite/canvas:latest"
@@ -41,6 +41,14 @@ process_job_worker_image = "membersuite/process-job-worker:8.4.5-dev"
 urltopng_image = "jasonraimondi/url-to-png:0.11.0"
 gearman_server_image = "artefactual/gearmand:1.1.19.1-alpine"
 scheduler_image = "membersuite/scheduler:1.6.0"
+
+# Docker Hub Credentials (for private images)
+# Option 1: Provide credentials - Terraform will create secret in Secrets Manager
+dockerhub_username = "your-dockerhub-username"
+dockerhub_password = "your-dockerhub-password-or-token"  # Use access token for better security
+
+# Option 2: Use existing secret ARN (if you already created the secret manually)
+# dockerhub_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:blue-dockerhub-credentials-xxxxx"
 
 # Resource Sizing
 app_cpu = 2048

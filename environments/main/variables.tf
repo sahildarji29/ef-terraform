@@ -119,6 +119,55 @@ variable "scheduler_image" {
   default     = "membersuite/scheduler:1.6.0"
 }
 
+# ECR Configuration
+variable "use_ecr" {
+  description = "Use ECR instead of Docker Hub for images"
+  type        = bool
+  default     = false
+}
+
+variable "app_image_tag" {
+  description = "Image tag for app service (used when use_ecr = true)"
+  type        = string
+  default     = "auth0"
+}
+
+variable "api2_image_tag" {
+  description = "Image tag for api2 service (used when use_ecr = true)"
+  type        = string
+  default     = "7.3.28"
+}
+
+variable "canvas_image_tag" {
+  description = "Image tag for canvas service (used when use_ecr = true)"
+  type        = string
+  default     = "latest"
+}
+
+variable "process_job_worker_image_tag" {
+  description = "Image tag for process-job-worker service (used when use_ecr = true)"
+  type        = string
+  default     = "8.4.5-dev"
+}
+
+variable "urltopng_image_tag" {
+  description = "Image tag for urltopng service (used when use_ecr = true)"
+  type        = string
+  default     = "0.11.0"
+}
+
+variable "gearman_server_image_tag" {
+  description = "Image tag for gearman-server service (used when use_ecr = true)"
+  type        = string
+  default     = "1.1.19.1-alpine"
+}
+
+variable "scheduler_image_tag" {
+  description = "Image tag for scheduler service (used when use_ecr = true)"
+  type        = string
+  default     = "1.6.0"
+}
+
 # Docker Hub Credentials (for private images)
 variable "dockerhub_username" {
   description = "Docker Hub username for private repository access"
@@ -233,6 +282,40 @@ variable "allowed_cidr_blocks" {
 
 variable "database_security_group_id" {
   description = "Security group ID for RDS/MySQL access"
+  type        = string
+  default     = ""
+}
+
+# Environment Variables
+variable "app_env" {
+  description = "Application environment (production, staging, etc.)"
+  type        = string
+  default     = "production"
+}
+
+variable "twilio_sid" {
+  description = "Twilio Account SID"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "twilio_token" {
+  description = "Twilio Auth Token"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "twilio_msg_service_sid" {
+  description = "Twilio Messaging Service SID"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "twilio_msg_status_callback_url" {
+  description = "Twilio message status callback URL"
   type        = string
   default     = ""
 }

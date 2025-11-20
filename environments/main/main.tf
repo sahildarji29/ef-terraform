@@ -88,25 +88,6 @@ module "monitoring" {
   tags = var.tags
 }
 
-# ECR Module - Create repositories for all Docker images
-module "ecr" {
-  source = "../../modules/ecr"
-
-  repository_names = [
-    "${var.cluster_name}-app",
-    "${var.cluster_name}-api2",
-    "${var.cluster_name}-canvas",
-    "${var.cluster_name}-process-job-worker",
-    "${var.cluster_name}-urltopng",
-    "${var.cluster_name}-gearmand",
-    "${var.cluster_name}-scheduler"
-  ]
-  image_tag_mutability = "MUTABLE"
-  scan_on_push         = true
-
-  tags = var.tags
-}
-
 # ECS Cluster Module
 module "ecs_cluster" {
   source = "../../modules/ecs/cluster"

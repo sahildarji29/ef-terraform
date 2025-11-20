@@ -159,7 +159,9 @@ module "alb" {
   subnet_ids                 = module.network.public_subnet_ids
   security_group_id          = module.security.alb_security_group_id
   enable_deletion_protection = false
-  certificate_arn            = "" # Empty - no certificate/domain yet
+  certificate_arn            = var.acm_certificate_arn
+  enable_https               = var.acm_certificate_arn != "" ? true : false
+  redirect_http_to_https     = var.acm_certificate_arn != "" ? true : false
   domain                     = var.domain
   api_domain                 = var.api_domain
   login_domain               = var.login_domain

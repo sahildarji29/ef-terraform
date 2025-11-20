@@ -55,9 +55,31 @@ variable "access_logs_prefix" {
 }
 
 variable "certificate_arn" {
-  description = "ARN of the ACM certificate (optional - can be empty if no domain)"
+  description = "ARN of the ACM certificate for HTTPS (leave empty to disable HTTPS)"
   type        = string
   default     = ""
+}
+
+variable "enable_https" {
+  description = "Enable HTTPS listener (requires certificate_arn)"
+  type        = bool
+  default     = false
+}
+
+variable "ssl_policy" {
+  description = "SSL policy for HTTPS listener"
+  type        = string
+  default     = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  validation {
+    condition     = contains(["ELBSecurityPolicy-TLS13-1-2-2021-06", "ELBSecurityPolicy-TLS13-1-3-2021-06", "ELBSecurityPolicy-TLS-1-2-2017-01", "ELBSecurityPolicy-TLS-1-1-2017-01"], var.ssl_policy)
+    error_message = "SSL policy must be a valid AWS ELB security policy."
+  }
+}
+
+variable "redirect_http_to_https" {
+  description = "Redirect HTTP traffic to HTTPS (only works if enable_https is true)"
+  type        = bool
+  default     = true
 }
 
 variable "domain" {

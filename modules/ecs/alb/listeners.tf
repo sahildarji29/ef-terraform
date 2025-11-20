@@ -1,19 +1,38 @@
-# HTTP Listener with path-based routing
+# HTTP Listener
+# If HTTPS is enabled and redirect is enabled, HTTP redirects to HTTPS
+# Otherwise, HTTP forwards traffic normally
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
   protocol          = "HTTP"
 
-  # Default action: forward to app service
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.app.arn
+  # Conditional: Redirect to HTTPS if enabled, otherwise forward to app
+  dynamic "default_action" {
+    for_each = var.enable_https && var.redirect_http_to_https ? [1] : []
+    content {
+      type = "redirect"
+      redirect {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+  }
+
+  # Default action: forward to app service (when HTTPS redirect is disabled)
+  dynamic "default_action" {
+    for_each = var.enable_https && var.redirect_http_to_https ? [] : [1]
+    content {
+      type             = "forward"
+      target_group_arn = aws_lb_target_group.app.arn
+    }
   }
 }
 
 # Listener Rule: API v2 Path (/api/v2/*) → API2 service (highest priority for specific API)
+# Applied to both HTTP and HTTPS listeners
 resource "aws_lb_listener_rule" "api_v2" {
-  listener_arn = aws_lb_listener.http.arn
+  listener_arn = var.enable_https && var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 100
 
   action {
@@ -30,7 +49,7 @@ resource "aws_lb_listener_rule" "api_v2" {
 
 # Listener Rule: App Path (/app/*) → API2 service
 resource "aws_lb_listener_rule" "app_path" {
-  listener_arn = aws_lb_listener.http.arn
+  listener_arn = var.enable_https && var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 110
 
   action {
@@ -47,7 +66,7 @@ resource "aws_lb_listener_rule" "app_path" {
 
 # Listener Rule: OAuth2 Path (/oauth2/*) → API2 service
 resource "aws_lb_listener_rule" "oauth2" {
-  listener_arn = aws_lb_listener.http.arn
+  listener_arn = var.enable_https && var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 120
 
   action {
@@ -64,7 +83,7 @@ resource "aws_lb_listener_rule" "oauth2" {
 
 # Listener Rule: API Path (/api/*) → API2 service (catch-all for /api)
 resource "aws_lb_listener_rule" "api" {
-  listener_arn = aws_lb_listener.http.arn
+  listener_arn = var.enable_https && var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 130
 
   action {
@@ -81,7 +100,7 @@ resource "aws_lb_listener_rule" "api" {
 
 # Listener Rule: Preview Path (/preview/*) → URL to PNG service
 resource "aws_lb_listener_rule" "preview" {
-  listener_arn = aws_lb_listener.http.arn
+  listener_arn = var.enable_https && var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 200
 
   action {
@@ -98,7 +117,7 @@ resource "aws_lb_listener_rule" "preview" {
 
 # Listener Rule: Canvas Path (/canvas/*) → Canvas service
 resource "aws_lb_listener_rule" "canvas" {
-  listener_arn = aws_lb_listener.http.arn
+  listener_arn = var.enable_https && var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 210
 
   action {
@@ -115,7 +134,7 @@ resource "aws_lb_listener_rule" "canvas" {
 
 # Listener Rule: Login Path (/login/*) → App service
 resource "aws_lb_listener_rule" "login" {
-  listener_arn = aws_lb_listener.http.arn
+  listener_arn = var.enable_https && var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 300
 
   action {
@@ -130,19 +149,23 @@ resource "aws_lb_listener_rule" "login" {
   }
 }
 
-# HTTPS Listener - COMMENTED OUT (no certificate/domain yet)
-# resource "aws_lb_listener" "https" {
-#   load_balancer_arn = aws_lb.main.arn
-#   port              = "443"
-#   protocol          = "HTTPS"
-#   ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01"
-#   certificate_arn   = var.certificate_arn
-#
-#   default_action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.app.arn
-#   }
-# }
+# HTTPS Listener
+# Only created if enable_https is true and certificate_arn is provided
+resource "aws_lb_listener" "https" {
+  count = var.enable_https && var.certificate_arn != "" ? 1 : 0
+
+  load_balancer_arn = aws_lb.main.arn
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = var.ssl_policy
+  certificate_arn   = var.certificate_arn
+
+  # Default action: forward to app service
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+}
 
 # Listener Rule: API Domain - COMMENTED OUT (no domain yet)
 # resource "aws_lb_listener_rule" "api_domain" {

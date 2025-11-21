@@ -14,9 +14,27 @@ This is the production/main environment configuration for the Event Farm ECS Far
 
 1. Copy `terraform.tfvars.example` to `terraform.tfvars`
 2. Fill in your environment-specific values
-3. Run `terraform init` to initialize
+3. **Initialize Terraform:**
+   ```bash
+   terraform init
+   ```
+   This will configure Terraform to store state in S3 at `eventfarm/main/terraform.tfstate`
 4. Run `terraform plan` to review changes
 5. Run `terraform apply` to deploy
+
+## State Management
+
+This environment uses **centralized S3 backend** for state management:
+- **S3 Bucket:** `eventfarm-terraform-state`
+- **State Path:** `eventfarm/main/terraform.tfstate`
+- **State Locking:** DynamoDB table `terraform-state-lock`
+- **Encryption:** Enabled
+
+The backend configuration is defined directly in `provider.tf`. This ensures:
+- State is stored centrally in S3
+- State locking prevents concurrent modifications
+- Automatic backups and versioning via S3
+- Team collaboration on the same state file
 
 ## Module Structure
 

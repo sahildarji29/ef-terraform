@@ -8,14 +8,13 @@ terraform {
     }
   }
 
-  # Uncomment and configure if using remote state
-  # backend "s3" {
-  #   bucket = "eventfarm-terraform-state"
-  #   key    = "environments/main/terraform.tfstate"
-  #   region = "us-east-1"
-  #   encrypt = true
-  #   dynamodb_table = "terraform-state-lock"
-  # }
+  backend "s3" {
+    bucket         = "eventfarm-terraform-state"
+    key            = "eventfarm/main/terraform.tfstate"
+    region         = "us-west-2"
+    encrypt        = true
+    dynamodb_table = "eventfarm-terraform-state-lock"
+  }
 }
 
 provider "aws" {

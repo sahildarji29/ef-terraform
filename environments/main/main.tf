@@ -1,8 +1,7 @@
-# Data source for current AWS account
+# Get current AWS account ID
 data "aws_caller_identity" "current" {}
 
-# Docker Hub Credentials Secret
-# Store Docker Hub credentials in Secrets Manager for ECS to pull private images
+# Docker Hub creds - storing in Secrets Manager so ECS can pull private images
 resource "aws_secretsmanager_secret" "dockerhub" {
   count = var.dockerhub_secret_arn == "" && var.dockerhub_username != "" ? 1 : 0
 
@@ -30,7 +29,7 @@ resource "aws_secretsmanager_secret_version" "dockerhub" {
 locals {
   dockerhub_secret_arn = var.dockerhub_secret_arn != "" ? var.dockerhub_secret_arn : (var.dockerhub_username != "" ? aws_secretsmanager_secret.dockerhub[0].arn : "")
 
-  # ECR Image URIs - Use ECR if use_ecr is true, otherwise use Docker Hub images
+  # Build image URIs - ECR if enabled, otherwise fallback to Docker Hub
   account_id   = data.aws_caller_identity.current.account_id
   ecr_registry = "${local.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com"
 
@@ -43,7 +42,7 @@ locals {
   scheduler_image_uri = var.use_ecr ? "${local.ecr_registry}/${var.cluster_name}-scheduler:${var.scheduler_image_tag}" : var.scheduler_image
 }
 
-# Network Module - Uses existing VPC
+# Network setup - using existing VPC
 module "network" {
   source = "../../modules/network"
 
@@ -55,7 +54,7 @@ module "network" {
   tags = var.tags
 }
 
-# Security Module
+# Security groups
 module "security" {
   source = "../../modules/security"
 
@@ -69,7 +68,7 @@ module "security" {
   tags = var.tags
 }
 
-# IAM Module
+# IAM roles
 module "iam" {
   source = "../../modules/iam"
 
@@ -78,7 +77,7 @@ module "iam" {
   tags = var.tags
 }
 
-# Monitoring Module
+# CloudWatch logs
 module "monitoring" {
   source = "../../modules/monitoring"
 
@@ -88,7 +87,7 @@ module "monitoring" {
   tags = var.tags
 }
 
-# ECS Cluster Module
+# ECS cluster
 module "ecs_cluster" {
   source = "../../modules/ecs/cluster"
 
@@ -102,7 +101,7 @@ module "ecs_cluster" {
   tags = var.tags
 }
 
-# ACM Certificate - COMMENTED OUT (no domain yet)
+# ACM cert - commented out for now, no domain configured yet
 # resource "aws_acm_certificate" "main" {
 #   count            = var.acm_certificate_arn == "" ? 1 : 0
 #   domain_name      = var.domain
@@ -131,7 +130,7 @@ module "ecs_cluster" {
 #   certificate_arn = var.acm_certificate_arn != "" ? var.acm_certificate_arn : aws_acm_certificate.main[0].arn
 # }
 
-# ALB Module
+# Load balancer
 module "alb" {
   source = "../../modules/ecs/alb"
 
@@ -148,15 +147,13 @@ module "alb" {
   login_domain               = var.login_domain
   base_domain                = var.base_domain
 
-  # depends_on = [
-  #   aws_acm_certificate.main
-  # ]  # COMMENTED OUT (no certificate)
+  # depends_on = [aws_acm_certificate.main]  # disabled - no cert yet
 
   tags = var.tags
 }
 
-# Task Definitions
-# App Task
+# Task definitions
+# App service
 module "task_app" {
   source = "../../modules/ecs/task"
 
@@ -170,9 +167,8 @@ module "task_app" {
     name      = "app"
     image     = local.app_image_uri
     essential = true
-    # Override entrypoint to use MYSQL_HOST env var instead of hardcoded "mysql" hostname
-    # The original run.sh checks "mysql" hostname, but ECS doesn't have that DNS entry
-    # We use the MYSQL_HOST environment variable that's already set below
+    # Had to override entrypoint - original script looks for "mysql" hostname but ECS doesn't have that
+    # Using MYSQL_HOST env var instead which we set below
     entryPoint = ["/bin/bash", "-c"]
     command = [
       "cd /var/www/ && dockerize -template /etc/nginx/conf.d/api.tmpl:/etc/nginx/conf.d/api.conf -template /etc/nginx/conf.d/auth.tmpl:/etc/nginx/conf.d/auth.conf -template /etc/nginx/conf.d/core.tmpl:/etc/nginx/conf.d/core.conf -template /var/www/Core/webroot/js/config.js.tmpl:/var/www/Core/webroot/js/config.js && if [ -n \"$${SERVICE_DISCOVERY_NAMESPACE}\" ]; then sed -i \"s|http://api2|http://api2.$${SERVICE_DISCOVERY_NAMESPACE}|g\" /etc/nginx/conf.d/core.conf && sed -i \"s|http://canvas|http://canvas.$${SERVICE_DISCOVERY_NAMESPACE}|g\" /etc/nginx/conf.d/core.conf && sed -i \"s|http://urltopng:3000|http://urltopng.$${SERVICE_DISCOVERY_NAMESPACE}:3000|g\" /etc/nginx/conf.d/core.conf && sed -i \"s|http://api/|http://api2.$${SERVICE_DISCOVERY_NAMESPACE}/|g\" /etc/nginx/conf.d/core.conf; fi && until nc -z \"$${MYSQL_HOST}\" 3306; do echo \"$$(date) - waiting for mysql at $${MYSQL_HOST}...\"; sleep 1; done && /usr/bin/supervisord -n -c /etc/supervisord.conf"
@@ -181,7 +177,7 @@ module "task_app" {
       containerPort = 80
       protocol      = "tcp"
     }]
-    # ECR uses IAM roles (no credentials needed), Docker Hub uses Secrets Manager
+    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -225,7 +221,7 @@ module "task_app" {
   tags = var.tags
 }
 
-# API2 Task
+# API2 service
 module "task_api2" {
   source = "../../modules/ecs/task"
 
@@ -243,7 +239,7 @@ module "task_api2" {
       containerPort = 80
       protocol      = "tcp"
     }]
-    # ECR uses IAM roles (no credentials needed), Docker Hub uses Secrets Manager
+    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -282,7 +278,7 @@ module "task_api2" {
   tags = var.tags
 }
 
-# Process Job Worker Task
+# Worker service
 module "task_worker" {
   source = "../../modules/ecs/task"
 
@@ -303,7 +299,7 @@ module "task_worker" {
       "php",
       "/Domain/src/Infrastructure/Console/process-job.php"
     ]
-    # ECR uses IAM roles (no credentials needed), Docker Hub uses Secrets Manager
+    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -326,7 +322,7 @@ module "task_worker" {
   tags = var.tags
 }
 
-# Canvas Task
+# Canvas service
 module "task_canvas" {
   source = "../../modules/ecs/task"
 
@@ -344,7 +340,7 @@ module "task_canvas" {
       containerPort = 80
       protocol      = "tcp"
     }]
-    # ECR uses IAM roles (no credentials needed), Docker Hub uses Secrets Manager
+    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -365,7 +361,7 @@ module "task_canvas" {
   tags = var.tags
 }
 
-# URL to PNG Task
+# URL to PNG service
 module "task_urltopng" {
   source = "../../modules/ecs/task"
 
@@ -383,7 +379,7 @@ module "task_urltopng" {
       containerPort = 3000
       protocol      = "tcp"
     }]
-    # ECR uses IAM roles (no credentials needed), Docker Hub uses Secrets Manager
+    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -413,7 +409,7 @@ module "task_urltopng" {
   tags = var.tags
 }
 
-# Gearman Server Task
+# Gearman server
 module "task_gearman" {
   source = "../../modules/ecs/task"
 
@@ -431,7 +427,7 @@ module "task_gearman" {
       containerPort = 4730
       protocol      = "tcp"
     }]
-    # ECR uses IAM roles (no credentials needed), Docker Hub uses Secrets Manager
+    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -451,7 +447,7 @@ module "task_gearman" {
   tags = var.tags
 }
 
-# Scheduler Task
+# Scheduler service
 module "task_scheduler" {
   source = "../../modules/ecs/task"
 
@@ -480,7 +476,7 @@ module "task_scheduler" {
       containerPort = 4000
       protocol      = "tcp"
     }]
-    # ECR uses IAM roles (no credentials needed), Docker Hub uses Secrets Manager
+    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -501,8 +497,8 @@ module "task_scheduler" {
   tags = var.tags
 }
 
-# ECS Services
-# App Service
+# ECS services
+# App
 module "service_app" {
   source = "../../modules/ecs/service"
 
@@ -528,7 +524,7 @@ module "service_app" {
   tags = var.tags
 }
 
-# API2 Service
+# API2
 module "service_api2" {
   source = "../../modules/ecs/service"
 
@@ -557,7 +553,7 @@ module "service_api2" {
   tags = var.tags
 }
 
-# Process Job Worker Service
+# Worker
 module "service_worker" {
   source = "../../modules/ecs/service"
 
@@ -579,7 +575,7 @@ module "service_worker" {
   tags = var.tags
 }
 
-# Canvas Service
+# Canvas
 module "service_canvas" {
   source = "../../modules/ecs/service"
 
@@ -605,7 +601,7 @@ module "service_canvas" {
   tags = var.tags
 }
 
-# URL to PNG Service
+# URL to PNG
 module "service_urltopng" {
   source = "../../modules/ecs/service"
 
@@ -631,7 +627,7 @@ module "service_urltopng" {
   tags = var.tags
 }
 
-# Gearman Server Service
+# Gearman
 module "service_gearman" {
   source = "../../modules/ecs/service"
 
@@ -650,7 +646,7 @@ module "service_gearman" {
   tags = var.tags
 }
 
-# Scheduler Service
+# Scheduler
 module "service_scheduler" {
   source = "../../modules/ecs/service"
 

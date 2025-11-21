@@ -1,12 +1,10 @@
-# HTTP Listener
-# If HTTPS is enabled and redirect is enabled, HTTP redirects to HTTPS
-# Otherwise, HTTP forwards traffic normally
+# HTTP listener - redirects to HTTPS if enabled, otherwise forwards to app
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
   protocol          = "HTTP"
 
-  # Conditional: Redirect to HTTPS if enabled, otherwise forward to app
+  # Redirect to HTTPS if enabled
   dynamic "default_action" {
     for_each = var.enable_https && var.redirect_http_to_https ? [1] : []
     content {
@@ -19,7 +17,7 @@ resource "aws_lb_listener" "http" {
     }
   }
 
-  # Default action: forward to app service (when HTTPS redirect is disabled)
+  # Default: forward to app (when HTTPS redirect is off)
   dynamic "default_action" {
     for_each = var.enable_https && var.redirect_http_to_https ? [] : [1]
     content {
@@ -29,8 +27,7 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# Listener Rule: API v2 Path (/api/v2/*) → API2 service (highest priority for specific API)
-# Applied to both HTTP and HTTPS listeners
+# API v2 path routing - goes to API2 service (highest priority)
 resource "aws_lb_listener_rule" "api_v2" {
   listener_arn = var.enable_https && var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 100

@@ -1,4 +1,4 @@
-# ECS Service
+# ECS service
 resource "aws_ecs_service" "main" {
   name            = var.service_name
   cluster         = var.cluster_id
@@ -29,9 +29,7 @@ resource "aws_ecs_service" "main" {
     }
   }
 
-  # Note: depends_on is not needed here because the service_registries block
-  # already references aws_service_discovery_service.main[0].arn, which creates
-  # an implicit dependency that Terraform will handle automatically.
+  # No explicit depends_on needed - service_registries already creates implicit dependency
 
   tags = merge(
     var.tags,
@@ -40,8 +38,7 @@ resource "aws_ecs_service" "main" {
     }
   )
 
-  # Ensure service is created before auto-scaling tries to reference it
-  # This lifecycle block helps ensure the service resource is fully created
+  # Make sure service is fully created before autoscaling kicks in
   lifecycle {
     create_before_destroy = true
   }

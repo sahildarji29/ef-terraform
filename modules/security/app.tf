@@ -1,4 +1,4 @@
-# Security Group for App Service
+# App service security group
 resource "aws_security_group" "app" {
   name        = "${var.cluster_name}-app-sg"
   description = "Security group for app service"
@@ -20,9 +20,9 @@ resource "aws_security_group" "app" {
     security_groups = [aws_security_group.alb.id]
   }
 
-  # Note: Communication with API2 is handled via API2 security group allowing from app
+  # API2 comms handled by API2's SG allowing from app
 
-  # Allow communication with other app instances
+  # Allow app instances to talk to each other
   ingress {
     description = "From other app instances"
     from_port   = 0

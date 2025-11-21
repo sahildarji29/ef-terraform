@@ -1,10 +1,10 @@
-# Security Group for API2 Service
+# API2 security group
 resource "aws_security_group" "api2" {
   name        = "${var.cluster_name}-api2-sg"
   description = "Security group for api2 service"
   vpc_id      = var.vpc_id
 
-  # Allow communication from app service (app can call API2)
+  # App can call API2
   ingress {
     description     = "From app service"
     from_port       = 0
@@ -13,7 +13,7 @@ resource "aws_security_group" "api2" {
     security_groups = [aws_security_group.app.id]
   }
 
-  # Allow communication with other api2 instances
+  # Allow api2 instances to talk to each other
   ingress {
     description = "From other api2 instances"
     from_port   = 0
@@ -22,7 +22,7 @@ resource "aws_security_group" "api2" {
     self        = true
   }
 
-  # Allow from workers (for API calls)
+  # Workers can call API2
   ingress {
     description     = "From worker services"
     from_port       = 0

@@ -1,4 +1,4 @@
-# Application Load Balancer
+# ALB setup
 resource "aws_lb" "main" {
   name               = "${var.cluster_name}-alb"
   internal           = false

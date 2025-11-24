@@ -1,7 +1,7 @@
 variable "aws_region" {
   description = "AWS region for resources"
   type        = string
-  default     = "us-east-1"
+  default     = "us-east-2"
 }
 
 variable "environment" {
@@ -353,10 +353,16 @@ variable "database_user" {
 }
 
 variable "database_password" {
-  description = "MySQL database password (should use Secrets Manager instead)"
+  description = "MySQL database password - Use SSM Parameter ARN or leave empty to reference existing parameter"
   type        = string
   default     = ""
   sensitive   = true
+}
+
+variable "database_password_ssm_arn" {
+  description = "ARN of existing SSM Parameter for database password (alternative to database_password)"
+  type        = string
+  default     = ""
 }
 
 variable "tags" {

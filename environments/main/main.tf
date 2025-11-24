@@ -77,6 +77,11 @@ module "iam" {
   tags = var.tags
 }
 
+# SSM Parameter Store Configuration
+# All environment variables and secrets are managed in ssm-parameters.tf
+# This includes parameter definitions AND service-to-parameter mappings
+# See ssm-parameters.tf for adding new parameters or updating service mappings.
+
 # CloudWatch logs
 module "monitoring" {
   source = "../../modules/monitoring"
@@ -181,26 +186,9 @@ module "task_app" {
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
-    environment = concat([
-      { name = "EF_ENV", value = var.environment },
-      { name = "CLUSTER", value = var.cluster_name },
-      { name = "DOMAIN", value = var.domain },
-      { name = "API_DOMAIN", value = var.api_domain },
-      { name = "LOGIN_DOMAIN", value = var.login_domain },
-      { name = "BASE_DOMAIN", value = var.base_domain },
-      { name = "SCHEME", value = "http" },
-      { name = "SERVICE_DISCOVERY_NAMESPACE", value = var.enable_service_discovery ? var.service_discovery_namespace : "" },
-      { name = "MYSQL_HOST", value = var.database_host },
-      { name = "MYSQL_USER", value = var.database_user },
-      { name = "MYSQL_PASSWORD", value = var.database_password },
-      { name = "MYSQL_DATABASE", value = var.database_name },
-      { name = "APP_ENV", value = var.app_env },
-      ], var.twilio_sid != "" ? [
-      { name = "TWILIO_SID", value = var.twilio_sid },
-      { name = "TWILIO_TOKEN", value = var.twilio_token },
-      { name = "TWILIO_MSG_SERVICE_SID", value = var.twilio_msg_service_sid },
-      { name = "TWILIO_MSG_STATUS_CALLBACK_URL", value = var.twilio_msg_status_callback_url },
-    ] : [])
+    # Use SSM Parameter Store for environment variables
+    # All environment variables are now managed in SSM Parameter Store
+    secrets = local.app_secrets
     logConfiguration = {
       logDriver = "awslogs"
       options = {

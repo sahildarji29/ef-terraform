@@ -67,10 +67,16 @@ gearman_server_image     = "your-org/gearmand:latest"
 scheduler_image          = "your-org/scheduler:latest"
 
 # Option 2: Use AWS ECR (set use_ecr = true and provide image tags)
-# use_ecr = true
-# app_image_tag = "v1.0.0"
-# api2_image_tag = "v1.0.0"
-# ... (see variables.tf for all ECR image tag variables)
+use_ecr = true
+
+# ECR Image Tags (used when use_ecr = true)
+app_image_tag                = "v1.0.0"
+api2_image_tag               = "v1.0.0"
+canvas_image_tag             = "latest"
+process_job_worker_image_tag = "v1.0.0"
+urltopng_image_tag           = "v1.0.0"
+gearman_server_image_tag     = "latest"
+scheduler_image_tag          = "v1.0.0"
 
 # ============================================================================
 # Docker Hub Credentials (for private container images)
@@ -78,12 +84,12 @@ scheduler_image          = "your-org/scheduler:latest"
 # Required only if using private Docker Hub repositories
 # Terraform will automatically create AWS Secrets Manager secret for ECS to use
 
-# Option 1: Provide credentials - Terraform creates secret in Secrets Manager
+# Option 1: Use existing secret ARN (recommended if secret already exists)
+dockerhub_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:cluster-dockerhub-credentials-xxxxx"
+
+# Option 2: Provide credentials - Terraform creates secret in Secrets Manager
 dockerhub_username = "your-dockerhub-username"
 dockerhub_password = "your-dockerhub-access-token"  # Use access token (not password) for better security
-
-# Option 2: Use existing secret ARN (if secret already exists)
-# dockerhub_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:cluster-dockerhub-credentials-xxxxx"
 
 # ============================================================================
 # Resource Sizing (CPU and Memory)
@@ -156,6 +162,19 @@ database_name     = "your_database_name"                     # Database name
 database_user     = "your_database_user"                     # Database username
 database_password = "your-secure-password"                    # Database password (sensitive)
 
+# ============================================================================
+# MongoDB Configuration
+# ============================================================================
+# MongoDB connection details for application services
+# IMPORTANT: For production, use AWS Secrets Manager or SSM Parameter Store
+# to store mongodb_password instead of plain text
+
+mongodb_host           = "your-mongodb-host"              # MongoDB hostname or IP
+mongodb_user           = "your_mongodb_user"              # MongoDB username
+mongodb_password       = "your-mongodb-password"          # MongoDB password (sensitive)
+mongodb_database       = "your_mongodb_database"          # MongoDB database name
+mongodb_email_database = "email"                          # MongoDB email database name
+
 # Security Groups (optional - if database is in different VPC or requires specific access)
 # database_security_group_id = "sg-xxxxxxxxxxxxxxxxx"
 # mongodb_security_group_id  = "sg-xxxxxxxxxxxxxxxxx"
@@ -166,7 +185,7 @@ database_password = "your-secure-password"                    # Database passwor
 # ACM Certificate ARN for HTTPS (optional - leave empty for HTTP only)
 # Certificate must be in the same region as the ALB
 
-# acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 # ============================================================================
 # Application Configuration
@@ -177,11 +196,13 @@ app_env = "production"  # Application environment (production, staging, developm
 # Third-Party Service Configuration (Optional)
 # ============================================================================
 # Twilio SMS service configuration (leave empty if not using Twilio)
+# IMPORTANT: For production, use AWS Secrets Manager or SSM Parameter Store
+# to store twilio_token instead of plain text
 
-# twilio_sid                     = ""
-# twilio_token                   = ""
-# twilio_msg_service_sid         = ""
-# twilio_msg_status_callback_url = ""
+twilio_sid                     = ""  # Twilio Account SID
+twilio_token                   = ""  # Twilio Auth Token (sensitive)
+twilio_msg_service_sid         = ""  # Twilio Messaging Service SID
+twilio_msg_status_callback_url = ""  # Twilio message status callback URL
 
 # ============================================================================
 # Resource Tags

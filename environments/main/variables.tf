@@ -32,22 +32,22 @@ variable "private_subnet_ids" {
 
 # Domain Configuration
 variable "domain" {
-  description = "Main domain (e.g., app.eventfarm.com)"
+  description = "Main application domain (e.g., app.example.com)"
   type        = string
 }
 
 variable "api_domain" {
-  description = "API domain (e.g., api.eventfarm.com)"
+  description = "API endpoint domain (e.g., api.example.com)"
   type        = string
 }
 
 variable "login_domain" {
-  description = "Login domain (e.g., login.eventfarm.com)"
+  description = "Authentication domain (e.g., login.example.com)"
   type        = string
 }
 
 variable "base_domain" {
-  description = "Base domain (e.g., eventfarm.com)"
+  description = "Base domain for SSL certificates (e.g., example.com)"
   type        = string
 }
 
@@ -77,46 +77,47 @@ variable "urltopng_scale" {
 }
 
 # Docker Images
+# Container images for each service - specify full image URI (registry/image:tag)
 variable "app_image" {
-  description = "Docker image for app service"
+  description = "Docker image URI for app service (e.g., your-registry/app:latest)"
   type        = string
-  default     = "membersuite/app:auth0"
+  default     = ""
 }
 
 variable "api2_image" {
-  description = "Docker image for api2 service"
+  description = "Docker image URI for api2 service"
   type        = string
-  default     = "membersuite/api2:7.3.28"
+  default     = ""
 }
 
 variable "canvas_image" {
-  description = "Docker image for canvas service"
+  description = "Docker image URI for canvas service"
   type        = string
-  default     = "membersuite/canvas:latest"
+  default     = ""
 }
 
 variable "process_job_worker_image" {
-  description = "Docker image for process-job-worker service"
+  description = "Docker image URI for process-job-worker service"
   type        = string
-  default     = "membersuite/process-job-worker:8.4.5-dev"
+  default     = ""
 }
 
 variable "urltopng_image" {
-  description = "Docker image for urltopng service"
+  description = "Docker image URI for urltopng service"
   type        = string
-  default     = "jasonraimondi/url-to-png:0.11.0"
+  default     = ""
 }
 
 variable "gearman_server_image" {
-  description = "Docker image for gearman-server service"
+  description = "Docker image URI for gearman-server service"
   type        = string
-  default     = "artefactual/gearmand:1.1.19.1-alpine"
+  default     = ""
 }
 
 variable "scheduler_image" {
-  description = "Docker image for scheduler service"
+  description = "Docker image URI for scheduler service"
   type        = string
-  default     = "membersuite/scheduler:1.6.0"
+  default     = ""
 }
 
 # ECR Configuration
@@ -241,9 +242,9 @@ variable "enable_service_discovery" {
 }
 
 variable "service_discovery_namespace" {
-  description = "Service discovery namespace name"
+  description = "Service discovery namespace name (e.g., your-app.local)"
   type        = string
-  default     = "eventfarm.local"
+  default     = ""
 }
 
 # Auto Scaling

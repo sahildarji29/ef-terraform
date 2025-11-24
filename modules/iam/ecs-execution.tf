@@ -1,4 +1,4 @@
-# IAM Role for ECS Task Execution
+# IAM role for ECS task execution - allows tasks to pull images, write logs, access secrets
 resource "aws_iam_role" "ecs_execution" {
   name = "${var.cluster_name}-ecs-execution-role"
 
@@ -23,7 +23,8 @@ resource "aws_iam_role_policy_attachment" "ecs_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Secrets Manager and SSM Parameter Store access
+# Policy for accessing Secrets Manager and SSM Parameter Store
+# Tasks need this to pull Docker Hub creds and read environment variables
 resource "aws_iam_role_policy" "ecs_execution_secrets" {
   name = "${var.cluster_name}-ecs-execution-secrets-policy"
   role = aws_iam_role.ecs_execution.id
@@ -50,7 +51,7 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
           "ssm:GetParametersByPath"
         ]
         Resource = [
-          "arn:aws:ssm:*:*:parameter/eventfarm/*"
+          "arn:aws:ssm:*:*:parameter/${var.cluster_name}/${var.environment}/*"
         ]
       },
       {

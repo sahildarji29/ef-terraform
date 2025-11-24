@@ -1,59 +1,172 @@
-# Main Environment Configuration
+# Production Environment Configuration
 
-This is the production/main environment configuration for the Event Farm ECS Fargate infrastructure.
+Production-ready Terraform configuration for deploying containerized applications on AWS ECS Fargate.
 
-## Structure
+## 📁 File Structure
 
-- `provider.tf` - Terraform and AWS provider configuration
-- `variables.tf` - Input variables
-- `main.tf` - Main configuration that calls all modules
-- `outputs.tf` - Output values
-- `terraform.tfvars` - Environment-specific values (gitignored)
+```
+environments/main/
+├── provider.tf              # Terraform backend and AWS provider configuration
+├── variables.tf             # Variable definitions with descriptions
+├── main.tf                  # Main infrastructure orchestration
+├── ssm-parameters.tf        # Environment variables and secrets (SSM Parameter Store)
+├── outputs.tf               # Output values (ALB URLs, service endpoints, etc.)
+├── terraform.tfvars.example # Configuration template (safe to commit)
+└── terraform.tfvars        # Your actual values (gitignored - never commit)
+```
 
-## Usage
+## 🚀 Quick Start
 
-1. Copy `terraform.tfvars.example` to `terraform.tfvars`
-2. Fill in your environment-specific values
-3. **Initialize Terraform:**
-   ```bash
-   terraform init
-   ```
-   This will configure Terraform to store state in S3 at `eventfarm/main/terraform.tfstate`
-4. Run `terraform plan` to review changes
-5. Run `terraform apply` to deploy
+### 1. Initial Setup
 
-## State Management
+```bash
+# Navigate to environment directory
+cd environments/main
 
-This environment uses **centralized S3 backend** for state management:
-- **S3 Bucket:** `eventfarm-terraform-state`
+# Copy example configuration
+cp terraform.tfvars.example terraform.tfvars
+
+# Edit terraform.tfvars with your actual values
+# (VPC IDs, domains, database credentials, etc.)
+```
+
+### 2. Initialize Terraform
+
+```bash
+terraform init
+```
+
+This configures:
+- Remote state backend (S3)
+- State locking (DynamoDB)
+- AWS provider plugins
+
+### 3. Review and Deploy
+
+```bash
+# Review planned changes
+terraform plan
+
+# Apply configuration
+terraform apply
+```
+
+## 🔐 State Management
+
+**Centralized S3 Backend:**
+- **Bucket:** `eventfarm-terraform-state`
 - **State Path:** `eventfarm/main/terraform.tfstate`
-- **State Locking:** DynamoDB table `terraform-state-lock`
-- **Encryption:** Enabled
+- **Locking:** DynamoDB table `terraform-state-lock`
+- **Encryption:** Enabled at rest
 
-The backend configuration is defined directly in `provider.tf`. This ensures:
-- State is stored centrally in S3
-- State locking prevents concurrent modifications
-- Automatic backups and versioning via S3
-- Team collaboration on the same state file
+**Benefits:**
+- ✅ Centralized state storage
+- ✅ State locking prevents conflicts
+- ✅ Version history via S3 versioning
+- ✅ Team collaboration on shared state
 
-## Module Structure
+## 🏗️ Infrastructure Components
 
-The configuration uses the following modules:
+### Network Layer
+- **VPC:** Uses existing VPC (no VPC creation)
+- **Subnets:** Public (ALB) and Private (ECS tasks)
+- **Multi-AZ:** High availability across availability zones
 
-- `modules/network` - VPC and subnet data sources
-- `modules/security` - Security groups
-- `modules/iam` - IAM roles
-- `modules/monitoring` - CloudWatch logs
-- `modules/ecs/cluster` - ECS cluster
-- `modules/ecs/task` - Task definitions
-- `modules/ecs/service` - ECS services
-- `modules/ecs/alb` - Application Load Balancer
+### Security Layer
+- **Security Groups:** Service-specific network isolation
+- **IAM Roles:** Least privilege access patterns
+- **Secrets Management:** SSM Parameter Store with encryption
 
-## Environment Variables
+### Compute Layer
+- **ECS Fargate:** Serverless container orchestration
+- **Services:** 7 microservices (app, api2, worker, canvas, urltopng, gearman, scheduler)
+- **Auto Scaling:** CPU/memory-based automatic scaling
 
-All environment variables should be stored in:
-- AWS Systems Manager Parameter Store (recommended)
-- AWS Secrets Manager (for sensitive data)
+### Application Layer
+- **ALB:** Application Load Balancer with HTTP/HTTPS
+- **Target Groups:** Service-specific routing
+- **Service Discovery:** Internal DNS-based communication
 
-Update task definitions to reference these secrets.
+### Monitoring Layer
+- **CloudWatch Logs:** Centralized logging per service
+- **Log Retention:** Configurable retention periods
+- **Container Insights:** ECS performance monitoring
+
+## 🔑 Environment Variables & Secrets
+
+**All managed in:** `ssm-parameters.tf`
+
+**Features:**
+- Centralized management
+- Encrypted secrets (SecureString)
+- Service-specific mappings
+- Easy to add new variables
+
+**See:** `ssm-parameters.tf` for details on adding new environment variables.
+
+## 📊 Module Architecture
+
+This environment uses modular, reusable components:
+
+| Module | Purpose | Location |
+|--------|---------|----------|
+| `network` | VPC and subnet configuration | `../../modules/network` |
+| `security` | Security groups and rules | `../../modules/security` |
+| `iam` | IAM roles and policies | `../../modules/iam` |
+| `monitoring` | CloudWatch log groups | `../../modules/monitoring` |
+| `ecs/cluster` | ECS cluster with service discovery | `../../modules/ecs/cluster` |
+| `ecs/task` | Task definitions | `../../modules/ecs/task` |
+| `ecs/service` | ECS services with auto-scaling | `../../modules/ecs/service` |
+| `ecs/alb` | Application Load Balancer | `../../modules/ecs/alb` |
+
+## ⚙️ Configuration
+
+### Required Variables
+
+- `vpc_id` - Existing VPC ID
+- `public_subnet_ids` - Public subnet IDs for ALB
+- `private_subnet_ids` - Private subnet IDs for ECS tasks
+- `domain` - Main application domain
+- `database_host` - Database endpoint
+- `database_password` - Database password (sensitive)
+
+### Optional Variables
+
+- `acm_certificate_arn` - SSL certificate (for HTTPS)
+- `dockerhub_secret_arn` - Existing Docker Hub secret
+- `enable_auto_scaling` - Enable auto-scaling (default: true)
+- `log_retention_days` - CloudWatch log retention (default: 30)
+
+See `variables.tf` for complete variable documentation.
+
+## 🔒 Security Best Practices
+
+1. ✅ **Never commit `terraform.tfvars`** - Contains sensitive values (gitignored)
+2. ✅ **Use SSM SecureString** - All passwords/tokens encrypted
+3. ✅ **Least privilege IAM** - Services only access needed resources
+4. ✅ **Network isolation** - Tasks in private subnets
+5. ✅ **Security groups** - Service-specific network rules
+6. ✅ **Encrypted state** - S3 backend with encryption
+
+## 📝 Notes
+
+- **terraform.tfvars** is gitignored - contains your actual secrets
+- **State file** stored remotely in S3 (encrypted)
+- **Secrets** should be rotated regularly
+- **Resource sizing** should be adjusted based on load testing
+- **CIDR blocks** should be restricted in production (not 0.0.0.0/0)
+
+## 🔄 Workflow
+
+1. **Modify configuration** in `main.tf` or modules
+2. **Update variables** in `terraform.tfvars` (if needed)
+3. **Review changes:** `terraform plan`
+4. **Apply changes:** `terraform apply`
+5. **Verify deployment** via AWS Console or outputs
+
+## 📚 Additional Documentation
+
+- **Root README.md** - Overall project documentation
+- **MODULAR_STRUCTURE.md** - Module architecture details
+- **STRUCTURE.md** - Complete directory structure
 

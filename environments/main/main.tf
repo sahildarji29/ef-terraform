@@ -1,7 +1,5 @@
-# Get current AWS account ID
 data "aws_caller_identity" "current" {}
 
-# Docker Hub creds - storing in Secrets Manager so ECS can pull private images
 resource "aws_secretsmanager_secret" "dockerhub" {
   count = var.dockerhub_secret_arn == "" && var.dockerhub_username != "" ? 1 : 0
 
@@ -29,10 +27,10 @@ resource "aws_secretsmanager_secret_version" "dockerhub" {
 locals {
   dockerhub_secret_arn = var.dockerhub_secret_arn != "" ? var.dockerhub_secret_arn : (var.dockerhub_username != "" ? aws_secretsmanager_secret.dockerhub[0].arn : "")
 
-  # Build image URIs - ECR if enabled, otherwise fallback to Docker Hub
   account_id   = data.aws_caller_identity.current.account_id
   ecr_registry = "${local.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com"
 
+  # Image URIs - use ECR if enabled, otherwise fall back to Docker Hub
   app_image_uri       = var.use_ecr ? "${local.ecr_registry}/${var.cluster_name}-app:${var.app_image_tag}" : var.app_image
   api2_image_uri      = var.use_ecr ? "${local.ecr_registry}/${var.cluster_name}-api2:${var.api2_image_tag}" : var.api2_image
   canvas_image_uri    = var.use_ecr ? "${local.ecr_registry}/${var.cluster_name}-canvas:${var.canvas_image_tag}" : var.canvas_image
@@ -42,7 +40,7 @@ locals {
   scheduler_image_uri = var.use_ecr ? "${local.ecr_registry}/${var.cluster_name}-scheduler:${var.scheduler_image_tag}" : var.scheduler_image
 }
 
-# Network setup - using existing VPC
+# Network setup - using existing VPC.
 module "network" {
   source = "../../modules/network"
 
@@ -54,7 +52,7 @@ module "network" {
   tags = var.tags
 }
 
-# Security groups
+# Security groups - each service gets its own SG for better isolation
 module "security" {
   source = "../../modules/security"
 
@@ -68,21 +66,19 @@ module "security" {
   tags = var.tags
 }
 
-# IAM roles
+# IAM roles - execution role for pulling images/SSM access, task role for app AWS API calls
 module "iam" {
   source = "../../modules/iam"
 
   cluster_name = var.cluster_name
+  environment  = var.environment
 
   tags = var.tags
 }
 
-# SSM Parameter Store Configuration
-# All environment variables and secrets are managed in ssm-parameters.tf
-# This includes parameter definitions AND service-to-parameter mappings
-# See ssm-parameters.tf for adding new parameters or updating service mappings.
+# All env vars and secrets are in ssm-parameters.tf - check there if you need to add/modify anything
 
-# CloudWatch logs
+# CloudWatch logs for all services
 module "monitoring" {
   source = "../../modules/monitoring"
 
@@ -92,7 +88,7 @@ module "monitoring" {
   tags = var.tags
 }
 
-# ECS cluster
+# ECS cluster with service discovery (so services can talk to each other by name)
 module "ecs_cluster" {
   source = "../../modules/ecs/cluster"
 
@@ -106,7 +102,8 @@ module "ecs_cluster" {
   tags = var.tags
 }
 
-# ACM cert - commented out for now, no domain configured yet
+# SSL cert - can create one here or use an existing ARN
+# Uncomment below if you want Terraform to create the cert (needs DNS validation)
 # resource "aws_acm_certificate" "main" {
 #   count            = var.acm_certificate_arn == "" ? 1 : 0
 #   domain_name      = var.domain
@@ -131,11 +128,7 @@ module "ecs_cluster" {
 #   )
 # }
 
-# locals {
-#   certificate_arn = var.acm_certificate_arn != "" ? var.acm_certificate_arn : aws_acm_certificate.main[0].arn
-# }
-
-# Load balancer
+# Load balancer - routes traffic to the right services
 module "alb" {
   source = "../../modules/ecs/alb"
 
@@ -157,8 +150,10 @@ module "alb" {
   tags = var.tags
 }
 
-# Task definitions
-# App service
+# Task definitions - these define what containers run and how they're configured
+# Env vars come from SSM Parameter Store (see ssm-parameters.tf)
+
+# App service - main frontend
 module "task_app" {
   source = "../../modules/ecs/task"
 
@@ -172,8 +167,7 @@ module "task_app" {
     name      = "app"
     image     = local.app_image_uri
     essential = true
-    # Had to override entrypoint - original script looks for "mysql" hostname but ECS doesn't have that
-    # Using MYSQL_HOST env var instead which we set below
+    # Startup command - uses service discovery namespace to find other services
     entryPoint = ["/bin/bash", "-c"]
     command = [
       "cd /var/www/ && dockerize -template /etc/nginx/conf.d/api.tmpl:/etc/nginx/conf.d/api.conf -template /etc/nginx/conf.d/auth.tmpl:/etc/nginx/conf.d/auth.conf -template /etc/nginx/conf.d/core.tmpl:/etc/nginx/conf.d/core.conf -template /var/www/Core/webroot/js/config.js.tmpl:/var/www/Core/webroot/js/config.js && if [ -n \"$${SERVICE_DISCOVERY_NAMESPACE}\" ]; then sed -i \"s|http://api2|http://api2.$${SERVICE_DISCOVERY_NAMESPACE}|g\" /etc/nginx/conf.d/core.conf && sed -i \"s|http://canvas|http://canvas.$${SERVICE_DISCOVERY_NAMESPACE}|g\" /etc/nginx/conf.d/core.conf && sed -i \"s|http://urltopng:3000|http://urltopng.$${SERVICE_DISCOVERY_NAMESPACE}:3000|g\" /etc/nginx/conf.d/core.conf && sed -i \"s|http://api/|http://api2.$${SERVICE_DISCOVERY_NAMESPACE}/|g\" /etc/nginx/conf.d/core.conf; fi && until nc -z \"$${MYSQL_HOST}\" 3306; do echo \"$$(date) - waiting for mysql at $${MYSQL_HOST}...\"; sleep 1; done && /usr/bin/supervisord -n -c /etc/supervisord.conf"
@@ -182,12 +176,12 @@ module "task_app" {
       containerPort = 80
       protocol      = "tcp"
     }]
-    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
+    # Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
-    # Use SSM Parameter Store for environment variables
-    # All environment variables are now managed in SSM Parameter Store
+    
+    # All environment variables are managed in SSM Parameter Store
     secrets = local.app_secrets
     logConfiguration = {
       logDriver = "awslogs"
@@ -209,7 +203,7 @@ module "task_app" {
   tags = var.tags
 }
 
-# API2 service
+# API2 service - REST API
 module "task_api2" {
   source = "../../modules/ecs/task"
 
@@ -227,7 +221,7 @@ module "task_api2" {
       containerPort = 80
       protocol      = "tcp"
     }]
-    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
+    # Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -266,7 +260,7 @@ module "task_api2" {
   tags = var.tags
 }
 
-# Worker service
+# Worker service - handles background jobs
 module "task_worker" {
   source = "../../modules/ecs/task"
 
@@ -310,7 +304,7 @@ module "task_worker" {
   tags = var.tags
 }
 
-# Canvas service
+# Canvas service - image processing
 module "task_canvas" {
   source = "../../modules/ecs/task"
 
@@ -328,7 +322,7 @@ module "task_canvas" {
       containerPort = 80
       protocol      = "tcp"
     }]
-    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
+    # Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -349,7 +343,7 @@ module "task_canvas" {
   tags = var.tags
 }
 
-# URL to PNG service
+# URL to PNG service - generates screenshots
 module "task_urltopng" {
   source = "../../modules/ecs/task"
 
@@ -367,7 +361,7 @@ module "task_urltopng" {
       containerPort = 3000
       protocol      = "tcp"
     }]
-    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
+    # Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -397,7 +391,7 @@ module "task_urltopng" {
   tags = var.tags
 }
 
-# Gearman server
+# Gearman server - job queue
 module "task_gearman" {
   source = "../../modules/ecs/task"
 
@@ -415,7 +409,7 @@ module "task_gearman" {
       containerPort = 4730
       protocol      = "tcp"
     }]
-    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
+    # Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -435,7 +429,7 @@ module "task_gearman" {
   tags = var.tags
 }
 
-# Scheduler service
+# Scheduler service - runs cron jobs
 module "task_scheduler" {
   source = "../../modules/ecs/task"
 
@@ -464,7 +458,7 @@ module "task_scheduler" {
       containerPort = 4000
       protocol      = "tcp"
     }]
-    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
+    # Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -485,11 +479,13 @@ module "task_scheduler" {
   tags = var.tags
 }
 
-# ECS services
-# App
+# ECS services - these run the tasks and handle scaling
+# Each service connects to the ALB and can auto-scale based on CPU/memory
+
+# App service
 module "service_app" {
   source = "../../modules/ecs/service"
-
+ 
   cluster_id          = module.ecs_cluster.cluster_id
   cluster_name        = var.cluster_name
   service_name        = "${var.cluster_name}-app"
@@ -512,7 +508,7 @@ module "service_app" {
   tags = var.tags
 }
 
-# API2
+# API2 Service
 module "service_api2" {
   source = "../../modules/ecs/service"
 
@@ -541,7 +537,7 @@ module "service_api2" {
   tags = var.tags
 }
 
-# Worker
+# Worker Service
 module "service_worker" {
   source = "../../modules/ecs/service"
 
@@ -563,7 +559,7 @@ module "service_worker" {
   tags = var.tags
 }
 
-# Canvas
+# Canvas Service
 module "service_canvas" {
   source = "../../modules/ecs/service"
 
@@ -589,7 +585,7 @@ module "service_canvas" {
   tags = var.tags
 }
 
-# URL to PNG
+# URL to PNG Service
 module "service_urltopng" {
   source = "../../modules/ecs/service"
 
@@ -615,7 +611,7 @@ module "service_urltopng" {
   tags = var.tags
 }
 
-# Gearman
+# Gearman Server Service
 module "service_gearman" {
   source = "../../modules/ecs/service"
 
@@ -634,7 +630,7 @@ module "service_gearman" {
   tags = var.tags
 }
 
-# Scheduler
+# Scheduler Service
 module "service_scheduler" {
   source = "../../modules/ecs/service"
 

@@ -1,29 +1,21 @@
-# ============================================================================
-# SSM Parameter Store - All Environment Variables & Secrets
-# ============================================================================
-# This is the SINGLE SOURCE OF TRUTH for all environment variables.
+# SSM Parameter Store - environment variables and secrets placed here
 #
-# STANDARD APPROACH FOR SECRETS:
-#   Option 1 (RECOMMENDED): Create secrets manually in AWS Console/CLI, then reference by ARN
-#   Option 2: Store in terraform.tfvars (gitignored) - only for initial setup
+# To add a new environment variable:
+#   1. Add it to the ssm_parameters map below
+#   2. Add the parameter name to the service's parameter_keys list (app_parameter_keys, etc.)
+#   3. Run terraform plan/apply
 #
-# HOW TO ADD NEW ENVIRONMENT VARIABLES:
-#   1. Add parameter definition in ssm_parameters map below (around line 20)
-#   2. Add parameter name to service's parameter_keys list (around line 160)
-#   3. Run: terraform plan && terraform apply
+# Parameter types:
+#   - SecureString: passwords, tokens, API keys (encrypted at rest)
+#   - String: URLs, hostnames, non-sensitive config
 #
-# PARAMETER TYPES:
-#   - SecureString: For passwords, tokens, API keys (encrypted)
-#   - String: For URLs, hostnames, non-sensitive config
-#
-# EXAMPLE - Adding STRIPE_API_KEY for app service:
-#   1. In ssm_parameters: "STRIPE_API_KEY" = { value = var.stripe_api_key, type = "SecureString", description = "..." }
-#   2. In app_parameter_keys: Add "STRIPE_API_KEY" to the list
-#   3. Done! Parameter will be available as env var STRIPE_API_KEY in app container
-# ============================================================================
+# Example: Adding STRIPE_API_KEY for app service
+#   1. Add to ssm_parameters: "STRIPE_API_KEY" = { value = var.stripe_api_key, type = "SecureString", description = "Stripe API key" }
+#   2. Add "STRIPE_API_KEY" to app_parameter_keys list
+#   3. That's it - it'll show up as STRIPE_API_KEY env var in the app container
 
 locals {
-  # SSM Parameters - Simple naming without categories
+  # All SSM parameters.
   ssm_parameters = {
     "EF_ENV" = {
       value       = var.environment
@@ -161,12 +153,6 @@ locals {
     #   description = "API key for new service"
     # }
     #
-    # For non-sensitive config (URLs, hostnames, etc.):
-    # "NEW_API_URL" = {
-    #   value       = var.new_api_url
-    #   type        = "String"
-    #   description = "API endpoint URL"
-    # }
   }
 
   # ========================================================================
@@ -246,12 +232,12 @@ locals {
     "CLUSTER",
   ]
 
-  # Parameter prefix for SSM paths
-  parameter_prefix = "/eventfarm/${var.environment}/${var.cluster_name}"
+  # SSM parameter path prefix - all params go under /{cluster}/{environment}/
+  parameter_prefix = "/${var.cluster_name}/${var.environment}"
 }
 
-# SSM Parameters - Direct resource definitions using standard AWS provider
-# Create a set of non-null parameter keys (keys are not sensitive, only values are)
+# Create SSM parameters - using standard AWS provider resources
+# Need to extract keys separately because Terraform doesn't like sensitive values in for_each
 locals {
   ssm_parameter_keys = nonsensitive(toset([
     for k, v in local.ssm_parameters : k
@@ -259,6 +245,7 @@ locals {
   ]))
 }
 
+# Create the SSM parameters
 resource "aws_ssm_parameter" "parameter" {
   for_each = local.ssm_parameter_keys
 
@@ -279,18 +266,13 @@ resource "aws_ssm_parameter" "parameter" {
   )
 }
 
-# ECS Secrets Arrays - Built from SSM parameters
+# Build the secrets arrays that ECS task definitions need
+# ECS expects secrets in a specific format: { name = "VAR_NAME", valueFrom = "ssm:/path/to/param" }
 locals {
-  # Map of parameter names to their full SSM paths (for ECS secrets)
+  # Map parameter names to their full SSM paths
   parameter_names = {
     for k, v in aws_ssm_parameter.parameter : k => v.name
   }
-
-  # ========================================================================
-  # ECS Secrets Arrays
-  # ========================================================================
-  # Convert parameter names to ECS secrets format for task definitions
-  # Format: { name = "VAR_NAME", valueFrom = "arn:aws:ssm:region:account:parameter/..." }
 
   app_secrets = [
     for key in local.app_parameter_keys : {

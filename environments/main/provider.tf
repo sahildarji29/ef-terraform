@@ -9,11 +9,12 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "eventfarm-terraform-state"
-    key            = "eventfarm/main/terraform.tfstate"
-    region         = "us-west-2"
+    # Remote state - update these with your actual S3 bucket and DynamoDB table
+    bucket         = "your-terraform-state-bucket"
+    key            = "environments/main/terraform.tfstate"
+    region         = "us-east-2"
     encrypt        = true
-    dynamodb_table = "eventfarm-terraform-state-lock"
+    dynamodb_table = "terraform-state-lock"
   }
 }
 

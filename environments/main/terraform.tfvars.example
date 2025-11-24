@@ -1,104 +1,197 @@
-# Main/Production Environment Configuration
-# Copy this to terraform.tfvars and fill in your values
+# ============================================================================
+# Environment Configuration Template
+# ============================================================================
+# Copy this file to terraform.tfvars and provide your environment-specific values
+# Note: terraform.tfvars is gitignored and should never be committed
+# ============================================================================
 
-aws_region = "us-east-1"
-environment = "prod"
-cluster_name = "blue"
+# AWS Configuration
+aws_region = "us-east-1"  # AWS region for all resources
+environment = "prod"      # Environment name (prod, staging, dev)
+cluster_name = "blue"     # Cluster identifier (blue, green, etc.)
 
-# VPC Configuration - Use existing VPC
-vpc_id = "vpc-43a1cc24"  # Replace with your VPC ID
+# ============================================================================
+# Network Configuration
+# ============================================================================
+# Use existing VPC and subnets - these should already exist in your AWS account
 
-# Subnet IDs - Replace with your actual subnet IDs
+vpc_id = "vpc-xxxxxxxxxxxxxxxxx"  # Existing VPC ID
+
+# Public subnets for Application Load Balancer (minimum 2 for high availability)
 public_subnet_ids = [
-  "subnet-be932892",  # us-east-1b
-  "subnet-ebcf39a2",  # us-east-1c
+  "subnet-xxxxxxxxxxxxxxxxx",  # Availability Zone 1
+  "subnet-yyyyyyyyyyyyyyyyy",  # Availability Zone 2
 ]
 
+# Private subnets for ECS tasks (minimum 2 for high availability)
 private_subnet_ids = [
-  "subnet-be932892",  # us-east-1b
-  "subnet-ebcf39a2",  # us-east-1c
-  "subnet-eda71467",  # us-east-1d
-  "subnet-cd3f2af0",  # us-east-1e
+  "subnet-xxxxxxxxxxxxxxxxx",  # Availability Zone 1
+  "subnet-yyyyyyyyyyyyyyyyy",  # Availability Zone 2
+  "subnet-zzzzzzzzzzzzzzzzz",  # Availability Zone 3 (optional)
+  "subnet-wwwwwwwwwwwwwwwwww", # Availability Zone 4 (optional)
 ]
 
+# ============================================================================
 # Domain Configuration
-domain = "app.eventfarm.com"
-api_domain = "api.eventfarm.com"
-login_domain = "login.eventfarm.com"
-base_domain = "eventfarm.com"
+# ============================================================================
+# Your application domains - configure DNS records to point to ALB
 
-# Service Scaling
-app_scale = 4
-api2_scale = 4
-worker_scale = 20
-urltopng_scale = 2
+domain      = "app.example.com"      # Main application domain
+api_domain   = "api.example.com"      # API endpoint domain
+login_domain = "login.example.com"   # Authentication domain
+base_domain  = "example.com"           # Base domain for SSL certificates
 
-# Docker Images (private repositories on Docker Hub)
-app_image = "membersuite/app:auth0"
-api2_image = "membersuite/api2:7.3.28"
-canvas_image = "membersuite/canvas:latest"
-process_job_worker_image = "membersuite/process-job-worker:8.4.5-dev"
-urltopng_image = "jasonraimondi/url-to-png:0.11.0"
-gearman_server_image = "artefactual/gearmand:1.1.19.1-alpine"
-scheduler_image = "membersuite/scheduler:1.6.0"
+# ============================================================================
+# Service Scaling Configuration
+# ============================================================================
+# Desired number of tasks for each service
+# Auto-scaling will adjust based on load (if enabled)
 
-# Docker Hub Credentials (for private images)
-# Option 1: Provide credentials - Terraform will create secret in Secrets Manager
+app_scale      = 4   # Main application service
+api2_scale     = 4   # API service
+worker_scale   = 20  # Background job workers
+urltopng_scale = 2   # URL to PNG conversion service
+
+# ============================================================================
+# Container Image Configuration
+# ============================================================================
+# Configure your Docker images - can use Docker Hub or AWS ECR
+
+# Option 1: Use Docker Hub (set use_ecr = false)
+app_image                = "your-org/app:latest"
+api2_image               = "your-org/api2:latest"
+canvas_image             = "your-org/canvas:latest"
+process_job_worker_image = "your-org/worker:latest"
+urltopng_image           = "your-org/urltopng:latest"
+gearman_server_image     = "your-org/gearmand:latest"
+scheduler_image          = "your-org/scheduler:latest"
+
+# Option 2: Use AWS ECR (set use_ecr = true and provide image tags)
+# use_ecr = true
+# app_image_tag = "v1.0.0"
+# api2_image_tag = "v1.0.0"
+# ... (see variables.tf for all ECR image tag variables)
+
+# ============================================================================
+# Docker Hub Credentials (for private container images)
+# ============================================================================
+# Required only if using private Docker Hub repositories
+# Terraform will automatically create AWS Secrets Manager secret for ECS to use
+
+# Option 1: Provide credentials - Terraform creates secret in Secrets Manager
 dockerhub_username = "your-dockerhub-username"
-dockerhub_password = "your-dockerhub-password-or-token"  # Use access token for better security
+dockerhub_password = "your-dockerhub-access-token"  # Use access token (not password) for better security
 
-# Option 2: Use existing secret ARN (if you already created the secret manually)
-# dockerhub_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:blue-dockerhub-credentials-xxxxx"
+# Option 2: Use existing secret ARN (if secret already exists)
+# dockerhub_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:cluster-dockerhub-credentials-xxxxx"
 
-# Resource Sizing
-app_cpu = 2048
-app_memory = 4096
-api2_cpu = 1024
-api2_memory = 2048
-worker_cpu = 512
-worker_memory = 1024
+# ============================================================================
+# Resource Sizing (CPU and Memory)
+# ============================================================================
+# CPU: 1024 = 1 vCPU, Memory: in MB
+# Adjust based on your application requirements and load testing
 
-# CloudWatch Logs
-log_retention_days = 30
+app_cpu    = 2048  # 2 vCPU
+app_memory = 4096  # 4 GB
 
-# Service Discovery
-enable_service_discovery = true
-service_discovery_namespace = "eventfarm.local"
+api2_cpu    = 1024  # 1 vCPU
+api2_memory = 2048  # 2 GB
 
-# Auto Scaling
+worker_cpu    = 512   # 0.5 vCPU
+worker_memory = 1024  # 1 GB
+
+# ============================================================================
+# Monitoring & Service Discovery
+# ============================================================================
+
+# CloudWatch Logs retention period (days)
+log_retention_days = 30  # Adjust based on compliance/audit requirements
+
+# AWS Service Discovery for internal service communication
+enable_service_discovery    = true
+service_discovery_namespace = "your-app.local"  # Internal DNS namespace
+
+# ============================================================================
+# Auto Scaling Configuration
+# ============================================================================
+# Configure automatic scaling based on CPU/memory utilization
+
 enable_auto_scaling = true
+
+# Minimum number of tasks (always running)
 min_capacity = {
-  app    = 2
-  api2   = 2
-  worker = 5
+  app    = 2   # Minimum app instances
+  api2   = 2   # Minimum API instances
+  worker = 5   # Minimum worker instances
 }
+
+# Maximum number of tasks (scales up to this limit)
 max_capacity = {
-  app    = 10
-  api2   = 10
-  worker = 50
+  app    = 10  # Maximum app instances
+  api2   = 10  # Maximum API instances
+  worker = 50  # Maximum worker instances
 }
 
-# Security
-allowed_cidr_blocks = ["0.0.0.0/0"]  # Restrict this in production
+# ============================================================================
+# Security Configuration
+# ============================================================================
+# CIDR blocks allowed to access the Application Load Balancer
+# IMPORTANT: Restrict to specific IPs/ranges in production
 
-# Database Security Groups (optional)
-# database_security_group_id = "sg-xxxxxxxxx"
-# mongodb_security_group_id  = "sg-xxxxxxxxx"
+allowed_cidr_blocks = ["0.0.0.0/0"]  # WARNING: Allows all IPs - restrict in production
 
-# Database Configuration (for scheduler)
-# Note: Use AWS Secrets Manager instead of plain text passwords
-database_host = "184.72.251.118"
-database_name = "eventfarm_db_03"
-database_user = "eventfarm"
-# database_password = ""  # Use Secrets Manager instead
+# Security Groups (optional - if using existing security groups)
+# database_security_group_id = "sg-xxxxxxxxxxxxxxxxx"  # RDS/MySQL security group
+# mongodb_security_group_id  = "sg-xxxxxxxxxxxxxxxxx"   # MongoDB security group
 
-# ACM Certificate (optional - use existing certificate ARN)
-# acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/xxxxx"
+# ============================================================================
+# Database Configuration
+# ============================================================================
+# Database connection details for application services
+# IMPORTANT: For production, use AWS Secrets Manager or SSM Parameter Store
+# to store database_password instead of plain text
 
-# Tags
+database_host     = "your-database-host.rds.amazonaws.com"  # RDS endpoint
+database_name     = "your_database_name"                     # Database name
+database_user     = "your_database_user"                     # Database username
+database_password = "your-secure-password"                    # Database password (sensitive)
+
+# Security Groups (optional - if database is in different VPC or requires specific access)
+# database_security_group_id = "sg-xxxxxxxxxxxxxxxxx"
+# mongodb_security_group_id  = "sg-xxxxxxxxxxxxxxxxx"
+
+# ============================================================================
+# SSL/TLS Configuration
+# ============================================================================
+# ACM Certificate ARN for HTTPS (optional - leave empty for HTTP only)
+# Certificate must be in the same region as the ALB
+
+# acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# ============================================================================
+# Application Configuration
+# ============================================================================
+app_env = "production"  # Application environment (production, staging, development)
+
+# ============================================================================
+# Third-Party Service Configuration (Optional)
+# ============================================================================
+# Twilio SMS service configuration (leave empty if not using Twilio)
+
+# twilio_sid                     = ""
+# twilio_token                   = ""
+# twilio_msg_service_sid         = ""
+# twilio_msg_status_callback_url = ""
+
+# ============================================================================
+# Resource Tags
+# ============================================================================
+# Tags applied to all resources for organization and cost tracking
+
 tags = {
-  Project     = "EventFarm"
+  Project     = "YourProjectName"
   Environment = "production"
   Team        = "Platform"
+  ManagedBy   = "Terraform"
 }
 

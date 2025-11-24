@@ -157,44 +157,7 @@ module "task_app" {
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
-    environment = concat(
-      concat([
-        { name = "EF_ENV", value = var.environment },
-        { name = "CLUSTER", value = var.cluster_name },
-        { name = "DOMAIN", value = var.domain },
-        { name = "API_DOMAIN", value = var.api_domain },
-        { name = "LOGIN_DOMAIN", value = var.login_domain },
-        { name = "BASE_DOMAIN", value = var.base_domain },
-        { name = "SCHEME", value = var.acm_certificate_arn != "" ? "https" : "http" },
-        { name = "BASE_URI", value = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.domain}" },
-        { name = "API2_BASE_URI", value = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.domain}/api" },
-        { name = "LOGIN_BASE_URI", value = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.login_domain}" },
-        { name = "SCHEDULER_BASE_URI", value = "http://scheduler.${var.enable_service_discovery ? var.service_discovery_namespace : "eventfarm.local"}:4000" },
-        { name = "GEARMAN_BASE_URI", value = "http://gearman-server.${var.enable_service_discovery ? var.service_discovery_namespace : "eventfarm.local"}:4730" },
-        { name = "SERVICE_DISCOVERY_NAMESPACE", value = var.enable_service_discovery ? var.service_discovery_namespace : "" },
-        { name = "MYSQL_HOST", value = var.database_host },
-        { name = "MYSQL_USER", value = var.database_user },
-        { name = "MYSQL_PASSWORD", value = var.database_password },
-        { name = "MYSQL_DATABASE", value = var.database_name },
-        ], var.mongodb_host != "" ? [
-        { name = "MONGO_HOST", value = var.mongodb_host },
-        { name = "MONGO_USER", value = var.mongodb_user },
-        { name = "MONGO_PASSWORD", value = var.mongodb_password },
-        { name = "MONGO_DATABASE", value = var.mongodb_database },
-        { name = "MONGO_EMAIL_DATABASE", value = var.mongodb_email_database },
-      ] : []),
-      concat([
-        { name = "APP_ENV", value = var.app_env },
-        { name = "DEBUG", value = "0" },
-        { name = "APP_DEBUG", value = "false" },
-        { name = "SHOW_EXCEPTIONS", value = "false" },
-        ], var.twilio_sid != "" ? [
-        { name = "TWILIO_SID", value = var.twilio_sid },
-        { name = "TWILIO_TOKEN", value = var.twilio_token },
-        { name = "TWILIO_MSG_SERVICE_SID", value = var.twilio_msg_service_sid },
-        { name = "TWILIO_MSG_STATUS_CALLBACK_URL", value = var.twilio_msg_status_callback_url },
-      ] : [])
-    )
+    secrets = local.app_secrets
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -235,36 +198,7 @@ module "task_api2" {
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
-    environment = concat(
-      concat([
-        { name = "EF_ENV", value = var.environment },
-        { name = "CLUSTER", value = var.cluster_name },
-        { name = "API_DOMAIN", value = var.api_domain },
-        { name = "BASE_URI", value = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.domain}" },
-        { name = "API2_BASE_URI", value = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.domain}/api" },
-        { name = "MYSQL_HOST", value = var.database_host },
-        { name = "MYSQL_USER", value = var.database_user },
-        { name = "MYSQL_PASSWORD", value = var.database_password },
-        { name = "MYSQL_DATABASE", value = var.database_name },
-        ], var.mongodb_host != "" ? [
-        { name = "MONGO_HOST", value = var.mongodb_host },
-        { name = "MONGO_USER", value = var.mongodb_user },
-        { name = "MONGO_PASSWORD", value = var.mongodb_password },
-        { name = "MONGO_DATABASE", value = var.mongodb_database },
-        { name = "MONGO_EMAIL_DATABASE", value = var.mongodb_email_database },
-      ] : []),
-      concat([
-        { name = "APP_ENV", value = var.app_env },
-        { name = "DEBUG", value = "0" },
-        { name = "APP_DEBUG", value = "false" },
-        { name = "SHOW_EXCEPTIONS", value = "false" },
-        ], var.twilio_sid != "" ? [
-        { name = "TWILIO_SID", value = var.twilio_sid },
-        { name = "TWILIO_TOKEN", value = var.twilio_token },
-        { name = "TWILIO_MSG_SERVICE_SID", value = var.twilio_msg_service_sid },
-        { name = "TWILIO_MSG_STATUS_CALLBACK_URL", value = var.twilio_msg_status_callback_url },
-      ] : [])
-    )
+    secrets = local.api2_secrets
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -308,12 +242,7 @@ module "task_worker" {
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
-    environment = [
-      { name = "EF_ENV", value = var.environment },
-      { name = "CLUSTER", value = var.cluster_name },
-      { name = "GEARMAN_HOST", value = var.enable_service_discovery ? "gearman-server.${var.service_discovery_namespace}" : "gearman-server" },
-      { name = "GEARMAN_PORT", value = "4730" },
-    ]
+    secrets = local.worker_secrets
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -347,10 +276,7 @@ module "task_canvas" {
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
-    environment = [
-      { name = "EF_ENV", value = var.environment },
-      { name = "CLUSTER", value = var.cluster_name },
-    ]
+    secrets = local.canvas_secrets
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -384,12 +310,7 @@ module "task_urltopng" {
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
-    environment = [
-      { name = "NODE_ENV", value = "production" },
-      { name = "STORAGE_PROVIDER", value = "s3" },
-      { name = "AWS_REGION", value = var.aws_region },
-      { name = "PUPPETEER_WAIT_UNTIL", value = "networkidle2" },
-    ]
+    secrets = local.urltopng_secrets
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -430,9 +351,6 @@ module "task_gearman" {
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
-    environment = [
-      { name = "VERBOSE", value = "INFO" },
-    ]
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -477,10 +395,7 @@ module "task_scheduler" {
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
-    environment = [
-      { name = "EF_ENV", value = var.environment },
-      { name = "CLUSTER", value = var.cluster_name },
-    ]
+    secrets = local.scheduler_secrets
     logConfiguration = {
       logDriver = "awslogs"
       options = {

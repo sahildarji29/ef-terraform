@@ -19,69 +19,109 @@ locals {
   ssm_parameters = {
     "EF_ENV" = {
       value       = var.environment
-      type        = "String"
+      type        = "SecureString"
       description = "Event Farm environment name"
     }
     "CLUSTER" = {
       value       = var.cluster_name
-      type        = "String"
+      type        = "SecureString"
       description = "Cluster name"
     }
     "DOMAIN" = {
       value       = var.domain
-      type        = "String"
+      type        = "SecureString"
       description = "Main domain"
     }
     "API_DOMAIN" = {
       value       = var.api_domain
-      type        = "String"
+      type        = "SecureString"
       description = "API domain"
     }
     "LOGIN_DOMAIN" = {
       value       = var.login_domain
-      type        = "String"
+      type        = "SecureString"
       description = "Login domain"
     }
     "BASE_DOMAIN" = {
       value       = var.base_domain
-      type        = "String"
+      type        = "SecureString"
       description = "Base domain"
     }
     "SCHEME" = {
-      value       = "http"
-      type        = "String"
+      value       = var.acm_certificate_arn != "" ? "https" : "http"
+      type        = "SecureString"
       description = "URL scheme (http/https)"
+    }
+    "BASE_URI" = {
+      value       = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.domain}"
+      type        = "SecureString"
+      description = "Base application URI"
+    }
+    "API2_BASE_URI" = {
+      value       = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.domain}/api"
+      type        = "SecureString"
+      description = "API2 base URI"
+    }
+    "LOGIN_BASE_URI" = {
+      value       = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.login_domain}"
+      type        = "SecureString"
+      description = "Login base URI"
+    }
+    "SCHEDULER_BASE_URI" = {
+      value       = "http://scheduler.${var.enable_service_discovery ? var.service_discovery_namespace : "eventfarm.local"}:4000"
+      type        = "SecureString"
+      description = "Scheduler service base URI"
+    }
+    "GEARMAN_BASE_URI" = {
+      value       = "http://gearman-server.${var.enable_service_discovery ? var.service_discovery_namespace : "eventfarm.local"}:4730"
+      type        = "SecureString"
+      description = "Gearman service base URI"
+    }
+    "DEBUG" = {
+      value       = "0"
+      type        = "SecureString"
+      description = "Debug mode flag"
+    }
+    "APP_DEBUG" = {
+      value       = "false"
+      type        = "SecureString"
+      description = "Application debug flag"
+    }
+    "SHOW_EXCEPTIONS" = {
+      value       = "false"
+      type        = "SecureString"
+      description = "Show exceptions flag"
     }
     "SERVICE_DISCOVERY_NAMESPACE" = {
       value       = var.enable_service_discovery ? var.service_discovery_namespace : ""
-      type        = "String"
+      type        = "SecureString"
       description = "Service discovery namespace"
     }
     "APP_ENV" = {
       value       = var.app_env
-      type        = "String"
+      type        = "SecureString"
       description = "Application environment (production, staging, etc.)"
     }
 
     # Database configuration
     "MYSQL_HOST" = {
       value       = var.database_host
-      type        = "String"
+      type        = "SecureString"
       description = "MySQL database host"
     }
     "MYSQL_USER" = {
       value       = var.database_user
-      type        = "String"
+      type        = "SecureString"
       description = "MySQL database user"
     }
     "MYSQL_PASSWORD" = {
       value       = var.database_password
       type        = "SecureString"
-      description = "MySQL database password (encrypted)"
+      description = "MySQL database password"
     }
     "MYSQL_DATABASE" = {
       value       = var.database_name
-      type        = "String"
+      type        = "SecureString"
       description = "MySQL database name"
     }
 
@@ -89,55 +129,82 @@ locals {
     "TWILIO_SID" = var.twilio_sid != "" ? {
       value       = var.twilio_sid
       type        = "SecureString"
-      description = "Twilio Account SID (encrypted)"
+      description = "Twilio Account SID"
     } : null
     "TWILIO_TOKEN" = var.twilio_token != "" ? {
       value       = var.twilio_token
       type        = "SecureString"
-      description = "Twilio Auth Token (encrypted)"
+      description = "Twilio Auth Token"
     } : null
     "TWILIO_MSG_SERVICE_SID" = var.twilio_msg_service_sid != "" ? {
       value       = var.twilio_msg_service_sid
       type        = "SecureString"
-      description = "Twilio Messaging Service SID (encrypted)"
+      description = "Twilio Messaging Service SID"
     } : null
     "TWILIO_MSG_STATUS_CALLBACK_URL" = var.twilio_msg_status_callback_url != "" ? {
       value       = var.twilio_msg_status_callback_url
-      type        = "String"
+      type        = "SecureString"
       description = "Twilio message status callback URL"
+    } : null
+
+    # MongoDB configuration
+    "MONGO_HOST" = var.mongodb_host != "" ? {
+      value       = var.mongodb_host
+      type        = "SecureString"
+      description = "MongoDB host"
+    } : null
+    "MONGO_USER" = var.mongodb_user != "" ? {
+      value       = var.mongodb_user
+      type        = "SecureString"
+      description = "MongoDB user"
+    } : null
+    "MONGO_PASSWORD" = var.mongodb_password != "" ? {
+      value       = var.mongodb_password
+      type        = "SecureString"
+      description = "MongoDB password"
+    } : null
+    "MONGO_DATABASE" = var.mongodb_database != "" ? {
+      value       = var.mongodb_database
+      type        = "SecureString"
+      description = "MongoDB database name"
+    } : null
+    "MONGO_EMAIL_DATABASE" = var.mongodb_email_database != "" ? {
+      value       = var.mongodb_email_database
+      type        = "SecureString"
+      description = "MongoDB email database name"
     } : null
 
     # Worker service configuration
     "GEARMAN_HOST" = {
       value       = var.enable_service_discovery ? "gearman-server.${var.service_discovery_namespace}" : "gearman-server"
-      type        = "String"
+      type        = "SecureString"
       description = "Gearman server hostname"
     }
     "GEARMAN_PORT" = {
       value       = "4730"
-      type        = "String"
+      type        = "SecureString"
       description = "Gearman server port"
     }
 
     # URL to PNG service configuration
     "NODE_ENV" = {
       value       = "production"
-      type        = "String"
+      type        = "SecureString"
       description = "Node.js environment"
     }
     "STORAGE_PROVIDER" = {
       value       = "s3"
-      type        = "String"
+      type        = "SecureString"
       description = "Storage provider (s3, local, etc.)"
     }
     "AWS_REGION" = {
       value       = var.aws_region
-      type        = "String"
+      type        = "SecureString"
       description = "AWS region for S3 storage"
     }
     "PUPPETEER_WAIT_UNTIL" = {
       value       = "networkidle2"
-      type        = "String"
+      type        = "SecureString"
       description = "Puppeteer wait condition for page load"
     }
 
@@ -174,13 +241,28 @@ locals {
       "LOGIN_DOMAIN",
       "BASE_DOMAIN",
       "SCHEME",
+      "BASE_URI",
+      "API2_BASE_URI",
+      "LOGIN_BASE_URI",
+      "SCHEDULER_BASE_URI",
+      "GEARMAN_BASE_URI",
       "SERVICE_DISCOVERY_NAMESPACE",
       "APP_ENV",
+      "DEBUG",
+      "APP_DEBUG",
+      "SHOW_EXCEPTIONS",
       "MYSQL_HOST",
       "MYSQL_USER",
       "MYSQL_PASSWORD",
       "MYSQL_DATABASE",
     ],
+    var.mongodb_host != "" ? [
+      "MONGO_HOST",
+      "MONGO_USER",
+      "MONGO_PASSWORD",
+      "MONGO_DATABASE",
+      "MONGO_EMAIL_DATABASE",
+    ] : [],
     var.twilio_sid != "" ? [
       "TWILIO_SID",
       "TWILIO_TOKEN",
@@ -194,12 +276,24 @@ locals {
       "EF_ENV",
       "CLUSTER",
       "API_DOMAIN",
+      "BASE_URI",
+      "API2_BASE_URI",
       "APP_ENV",
+      "DEBUG",
+      "APP_DEBUG",
+      "SHOW_EXCEPTIONS",
       "MYSQL_HOST",
       "MYSQL_USER",
       "MYSQL_PASSWORD",
       "MYSQL_DATABASE",
     ],
+    var.mongodb_host != "" ? [
+      "MONGO_HOST",
+      "MONGO_USER",
+      "MONGO_PASSWORD",
+      "MONGO_DATABASE",
+      "MONGO_EMAIL_DATABASE",
+    ] : [],
     var.twilio_sid != "" ? [
       "TWILIO_SID",
       "TWILIO_TOKEN",

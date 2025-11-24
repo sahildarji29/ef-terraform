@@ -157,26 +157,8 @@ module "task_app" {
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
-    # Only computed values that aren't in SSM Parameter Store
-    environment = concat(
-      [
-        { name = "BASE_URI", value = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.domain}" },
-        { name = "API2_BASE_URI", value = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.domain}/api" },
-        { name = "LOGIN_BASE_URI", value = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.login_domain}" },
-        { name = "SCHEDULER_BASE_URI", value = "http://scheduler.${var.enable_service_discovery ? var.service_discovery_namespace : "eventfarm.local"}:4000" },
-        { name = "GEARMAN_BASE_URI", value = "http://gearman-server.${var.enable_service_discovery ? var.service_discovery_namespace : "eventfarm.local"}:4730" },
-        { name = "DEBUG", value = "0" },
-        { name = "APP_DEBUG", value = "false" },
-        { name = "SHOW_EXCEPTIONS", value = "false" },
-      ],
-      var.mongodb_host != "" ? [
-        { name = "MONGO_HOST", value = var.mongodb_host },
-        { name = "MONGO_USER", value = var.mongodb_user },
-        { name = "MONGO_PASSWORD", value = var.mongodb_password },
-        { name = "MONGO_DATABASE", value = var.mongodb_database },
-        { name = "MONGO_EMAIL_DATABASE", value = var.mongodb_email_database },
-      ] : []
-    )
+    # All environment variables come from SSM Parameter Store
+    environment = []
     # All secrets come from SSM Parameter Store (SecureString for sensitive data)
     secrets = local.app_secrets
     logConfiguration = {
@@ -219,14 +201,8 @@ module "task_api2" {
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
-    # Only computed values that aren't in SSM Parameter Store
-    environment = [
-      { name = "BASE_URI", value = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.domain}" },
-      { name = "API2_BASE_URI", value = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.domain}/api" },
-      { name = "DEBUG", value = "0" },
-      { name = "APP_DEBUG", value = "false" },
-      { name = "SHOW_EXCEPTIONS", value = "false" },
-    ]
+    # All environment variables come from SSM Parameter Store
+    environment = []
     # All secrets come from SSM Parameter Store (SecureString for sensitive data)
     secrets = local.api2_secrets
     logConfiguration = {
@@ -384,9 +360,9 @@ module "task_gearman" {
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
-    environment = [
-      { name = "VERBOSE", value = "INFO" },
-    ]
+    # All environment variables come from SSM Parameter Store
+    environment = []
+    secrets = local.gearman_secrets
     logConfiguration = {
       logDriver = "awslogs"
       options = {

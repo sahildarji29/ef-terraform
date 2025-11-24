@@ -1,6 +1,6 @@
 # HTTP Listener
 # If HTTPS is enabled and redirect is enabled, HTTP redirects to HTTPS
-# Otherwise, HTTP forwards traffic normally
+# Otherwise, HTTP forwards traffic normally with domain and path-based routing
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
@@ -29,9 +29,93 @@ resource "aws_lb_listener" "http" {
   }
 }
 
+# Domain-based Routing Rules for HTTP (only when HTTPS redirect is disabled)
+# These match the Docker Swarm nginx interlock configuration
+
+# Listener Rule: API Domain → API2 service (HTTP only, when redirect disabled)
+resource "aws_lb_listener_rule" "api_domain_http" {
+  count = var.enable_https && var.redirect_http_to_https ? 0 : 1
+
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 50
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api2.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.api_domain]
+    }
+  }
+}
+
+# Listener Rule: Login Domain → App service (HTTP only)
+resource "aws_lb_listener_rule" "login_domain_http" {
+  count = var.enable_https && var.redirect_http_to_https ? 0 : 1
+
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 60
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.login_domain]
+    }
+  }
+}
+
+# Listener Rule: Main Domain → App service (HTTP only)
+resource "aws_lb_listener_rule" "main_domain_http" {
+  count = var.enable_https && var.redirect_http_to_https ? 0 : 1
+
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 70
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.domain]
+    }
+  }
+}
+
+# Listener Rule: Base Domain and Wildcard → App service (HTTP only)
+resource "aws_lb_listener_rule" "base_domain_http" {
+  count = var.enable_https && var.redirect_http_to_https ? 0 : 1
+
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 80
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.base_domain, "*.${var.base_domain}"]
+    }
+  }
+}
+
+# Path-based Routing Rules
+# These work on both HTTP and HTTPS listeners
+# When HTTPS redirect is enabled, these only apply to HTTPS listener
+# Note: Path-based rules have lower priority than domain-based rules
+
 # Listener Rule: API v2 Path (/api/v2/*) → API2 service (highest priority for specific API)
-# Applied to both HTTP and HTTPS listeners
 resource "aws_lb_listener_rule" "api_v2" {
+  # Apply to HTTPS if enabled, otherwise HTTP (but only if redirect is disabled)
   listener_arn = var.enable_https && var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 100
 
@@ -133,7 +217,7 @@ resource "aws_lb_listener_rule" "canvas" {
 }
 
 # Listener Rule: Login Path (/login/*) → App service
-resource "aws_lb_listener_rule" "login" {
+resource "aws_lb_listener_rule" "login_path" {
   listener_arn = var.enable_https && var.certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 300
 
@@ -167,54 +251,82 @@ resource "aws_lb_listener" "https" {
   }
 }
 
-# Listener Rule: API Domain - COMMENTED OUT (no domain yet)
-# resource "aws_lb_listener_rule" "api_domain" {
-#   listener_arn = aws_lb_listener.https.arn
-#   priority     = 100
-#
-#   action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.api2.arn
-#   }
-#
-#   condition {
-#     host_header {
-#       values = [var.api_domain]
-#     }
-#   }
-# }
+# Domain-based Routing Rules for HTTPS
+# These match the Docker Swarm nginx interlock configuration
 
-# Listener Rule: Login Domain - COMMENTED OUT (no domain yet)
-# resource "aws_lb_listener_rule" "login" {
-#   listener_arn = aws_lb_listener.https.arn
-#   priority     = 200
-#
-#   action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.app.arn
-#   }
-#
-#   condition {
-#     host_header {
-#       values = [var.login_domain]
-#     }
-#   }
-# }
+# Listener Rule: API Domain → API2 service (highest priority for domain routing)
+resource "aws_lb_listener_rule" "api_domain_https" {
+  count = var.enable_https && var.certificate_arn != "" ? 1 : 0
 
-# Listener Rule: Base Domain - COMMENTED OUT (no domain yet)
-# resource "aws_lb_listener_rule" "base" {
-#   listener_arn = aws_lb_listener.https.arn
-#   priority     = 300
-#
-#   action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.app.arn
-#   }
-#
-#   condition {
-#     host_header {
-#       values = [var.base_domain, "*.${var.base_domain}"]
-#     }
-#   }
-# }
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 50  # Higher priority than path-based rules
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api2.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.api_domain]
+    }
+  }
+}
+
+# Listener Rule: Login Domain → App service
+resource "aws_lb_listener_rule" "login_domain_https" {
+  count = var.enable_https && var.certificate_arn != "" ? 1 : 0
+
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 60
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.login_domain]
+    }
+  }
+}
+
+# Listener Rule: Main Domain → App service
+resource "aws_lb_listener_rule" "main_domain_https" {
+  count = var.enable_https && var.certificate_arn != "" ? 1 : 0
+
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 70
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.domain]
+    }
+  }
+}
+
+# Listener Rule: Base Domain and Wildcard → App service
+resource "aws_lb_listener_rule" "base_domain_https" {
+  count = var.enable_https && var.certificate_arn != "" ? 1 : 0
+
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 80
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.base_domain, "*.${var.base_domain}"]
+    }
+  }
+}
 

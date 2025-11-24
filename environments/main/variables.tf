@@ -359,6 +359,38 @@ variable "database_password" {
   sensitive   = true
 }
 
+# MongoDB Configuration
+variable "mongodb_host" {
+  description = "MongoDB host"
+  type        = string
+  default     = ""
+}
+
+variable "mongodb_user" {
+  description = "MongoDB user"
+  type        = string
+  default     = ""
+}
+
+variable "mongodb_password" {
+  description = "MongoDB password (should use Secrets Manager instead)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "mongodb_database" {
+  description = "MongoDB database name"
+  type        = string
+  default     = ""
+}
+
+variable "mongodb_email_database" {
+  description = "MongoDB email database name"
+  type        = string
+  default     = ""
+}
+
 variable "tags" {
   description = "Common tags for all resources"
   type        = map(string)

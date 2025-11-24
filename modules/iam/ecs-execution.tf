@@ -23,7 +23,7 @@ resource "aws_iam_role_policy_attachment" "ecs_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Additional policy for Secrets Manager access (for Docker Hub credentials)
+# Secrets Manager and SSM Parameter Store access
 resource "aws_iam_role_policy" "ecs_execution_secrets" {
   name = "${var.cluster_name}-ecs-execution-secrets-policy"
   role = aws_iam_role.ecs_execution.id
@@ -41,6 +41,31 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
           "arn:aws:secretsmanager:*:*:secret:${var.cluster_name}-dockerhub-credentials-*",
           "arn:aws:secretsmanager:*:*:secret:dockerhub-credentials-*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameters",
+          "ssm:GetParameter",
+          "ssm:GetParametersByPath"
+        ]
+        Resource = [
+          "arn:aws:ssm:*:*:parameter/eventfarm/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt"
+        ]
+        Resource = [
+          "*"
+        ]
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.*.amazonaws.com"
+          }
+        }
       }
     ]
   })

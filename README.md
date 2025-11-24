@@ -1,8 +1,7 @@
 # Event Farm - AWS ECS Fargate Infrastructure
 
-Production-ready Terraform configuration for deploying containerized applications on AWS ECS Fargate with a modular, scalable architecture.
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 This infrastructure provides a complete container orchestration platform on AWS:
 
@@ -14,7 +13,7 @@ This infrastructure provides a complete container orchestration platform on AWS:
 - **Auto Scaling** - Automatic scaling based on demand
 - **VPC Networking** - Secure network isolation
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 ef-terraform/
@@ -27,7 +26,6 @@ ef-terraform/
 │   │   ├── outputs.tf         # Output values
 │   │   ├── terraform.tfvars.example  # Configuration template
 │   │   └── README.md          # Environment-specific docs
-│   └── prelive/              # Pre-production environment
 │
 └── modules/                   # Reusable Terraform modules
     ├── network/              # VPC and networking resources
@@ -42,7 +40,7 @@ ef-terraform/
         └── alb/              # Application Load Balancer
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -84,7 +82,7 @@ ef-terraform/
    terraform apply
    ```
 
-## 🔐 Security & Secrets Management
+## Security & Secrets Management
 
 ### Environment Variables & Secrets
 
@@ -122,13 +120,13 @@ All environment variables and secrets are managed via **AWS SSM Parameter Store*
 
 ### Secret Management Best Practices
 
-- ✅ **Never commit `terraform.tfvars`** - Already gitignored
-- ✅ **Use SecureString** for all sensitive data
-- ✅ **Rotate secrets regularly** - Update in AWS Console/CLI
-- ✅ **Least privilege IAM** - Services only access needed secrets
-- ✅ **Audit logging** - CloudTrail tracks all SSM access
+-  **Never commit `terraform.tfvars`** - Already gitignored
+-  **Use SecureString** for all sensitive data
+-  **Rotate secrets regularly** - Update in AWS Console/CLI
+-  **Least privilege IAM** - Services only access needed secrets
+-  **Audit logging** - CloudTrail tracks all SSM access
 
-## 🏛️ Infrastructure Components
+## Infrastructure Components
 
 ### Network Layer
 - Uses existing VPC (no VPC creation)
@@ -163,119 +161,3 @@ All environment variables and secrets are managed via **AWS SSM Parameter Store*
 - **CloudWatch Logs** - Centralized logging
 - **Log Groups** - Per-service log aggregation
 - **Configurable Retention** - Adjustable log retention periods
-
-## 📊 Key Features
-
-### Modular Design
-- **Reusable modules** - DRY principle
-- **Environment separation** - Prod, staging, dev
-- **Clear boundaries** - Each module has single responsibility
-
-### Scalability
-- **Auto Scaling** - Automatic task scaling
-- **Horizontal scaling** - Add more tasks under load
-- **Resource optimization** - Configurable CPU/memory per service
-
-### High Availability
-- **Multi-AZ deployment** - Tasks across availability zones
-- **Load balancing** - ALB distributes traffic
-- **Service discovery** - Automatic service registration
-
-### Security
-- **Network isolation** - Private subnets for tasks
-- **Encrypted secrets** - SSM SecureString parameters
-- **IAM best practices** - Least privilege access
-- **Security groups** - Network-level firewalling
-
-## 🔧 Configuration
-
-### Environment Variables
-
-All environment variables are centralized in `ssm-parameters.tf`:
-- Common variables (EF_ENV, CLUSTER, DOMAIN, etc.)
-- Database configuration (MYSQL_HOST, MYSQL_PASSWORD, etc.)
-- Service-specific variables (GEARMAN_HOST, NODE_ENV, etc.)
-
-### Service Configuration
-
-Each ECS service is configured with:
-- **Task Definition** - CPU, memory, container image
-- **Service Configuration** - Desired count, auto-scaling
-- **Environment Variables** - From SSM Parameter Store
-- **Health Checks** - Container health monitoring
-- **Logging** - CloudWatch Logs integration
-
-## 📚 Documentation
-
-- **`environments/main/README.md`** - Environment-specific documentation
-- **`MODULAR_STRUCTURE.md`** - Module architecture and design
-- **`STRUCTURE.md`** - Detailed directory structure
-
-## 🛠️ Module Details
-
-### Network Module
-- VPC data sources
-- Subnet configuration
-- NAT Gateway setup (if needed)
-
-### Security Module
-- Security groups per service
-- ALB security group
-- Database access rules
-
-### IAM Module
-- ECS execution role (for pulling images, SSM access)
-- ECS task role (for application AWS API access)
-- Least privilege policies
-
-### Monitoring Module
-- CloudWatch log groups
-- Per-service log streams
-- Configurable retention
-
-### ECS Modules
-- **Cluster** - ECS cluster with service discovery
-- **Task** - Container task definitions
-- **Service** - ECS services with auto-scaling
-- **ALB** - Application Load Balancer with listeners
-
-## 🔄 Workflow
-
-1. **Infrastructure as Code** - All resources defined in Terraform
-2. **Version Control** - Git for infrastructure changes
-3. **State Management** - Remote state in S3 with locking
-4. **Environment Separation** - Different configs per environment
-5. **Secret Management** - SSM Parameter Store for all secrets
-
-## 🎯 Best Practices Implemented
-
-- ✅ **Modular architecture** - Reusable, maintainable modules
-- ✅ **Environment separation** - Clear prod/staging/dev boundaries
-- ✅ **Secret management** - SSM Parameter Store with encryption
-- ✅ **Infrastructure as Code** - Version controlled, repeatable
-- ✅ **Auto scaling** - Automatic capacity management
-- ✅ **High availability** - Multi-AZ deployment
-- ✅ **Security** - Network isolation, IAM, encrypted secrets
-- ✅ **Monitoring** - Centralized logging
-- ✅ **Documentation** - Comprehensive inline and external docs
-
-## 📝 Notes
-
-- **terraform.tfvars** is gitignored - contains sensitive values
-- **State file** stored in S3 with encryption and locking
-- **Secrets** should be rotated regularly
-- **Resource sizing** should be adjusted based on load testing
-- **CIDR blocks** should be restricted in production
-
-## 🤝 Contributing
-
-When adding new infrastructure:
-1. Follow existing module patterns
-2. Update documentation
-3. Add appropriate variables
-4. Test in non-production first
-5. Update this README if needed
-
-## 📄 License
-
-Internal use only - Event Farm Platform Team

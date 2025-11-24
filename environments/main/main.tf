@@ -1,4 +1,12 @@
+# ============================================================================
+# Data Sources
+# ============================================================================
+
 data "aws_caller_identity" "current" {}
+
+# ============================================================================
+# Docker Hub Credentials (Secrets Manager)
+# ============================================================================
 
 resource "aws_secretsmanager_secret" "dockerhub" {
   count = var.dockerhub_secret_arn == "" && var.dockerhub_username != "" ? 1 : 0
@@ -24,13 +32,16 @@ resource "aws_secretsmanager_secret_version" "dockerhub" {
   })
 }
 
+# ============================================================================
+# Local Values
+# ============================================================================
+
 locals {
   dockerhub_secret_arn = var.dockerhub_secret_arn != "" ? var.dockerhub_secret_arn : (var.dockerhub_username != "" ? aws_secretsmanager_secret.dockerhub[0].arn : "")
 
   account_id   = data.aws_caller_identity.current.account_id
   ecr_registry = "${local.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com"
 
-  # Image URIs - use ECR if enabled, otherwise fall back to Docker Hub
   app_image_uri       = var.use_ecr ? "${local.ecr_registry}/${var.cluster_name}-app:${var.app_image_tag}" : var.app_image
   api2_image_uri      = var.use_ecr ? "${local.ecr_registry}/${var.cluster_name}-api2:${var.api2_image_tag}" : var.api2_image
   canvas_image_uri    = var.use_ecr ? "${local.ecr_registry}/${var.cluster_name}-canvas:${var.canvas_image_tag}" : var.canvas_image
@@ -40,7 +51,10 @@ locals {
   scheduler_image_uri = var.use_ecr ? "${local.ecr_registry}/${var.cluster_name}-scheduler:${var.scheduler_image_tag}" : var.scheduler_image
 }
 
-# Network setup - using existing VPC.
+# ============================================================================
+# Infrastructure Modules
+# ============================================================================
+
 module "network" {
   source = "../../modules/network"
 
@@ -52,7 +66,6 @@ module "network" {
   tags = var.tags
 }
 
-# Security groups - each service gets its own SG for better isolation
 module "security" {
   source = "../../modules/security"
 
@@ -66,7 +79,6 @@ module "security" {
   tags = var.tags
 }
 
-# IAM roles - execution role for pulling images/SSM access, task role for app AWS API calls
 module "iam" {
   source = "../../modules/iam"
 
@@ -76,9 +88,6 @@ module "iam" {
   tags = var.tags
 }
 
-# All env vars and secrets are in ssm-parameters.tf - check there if you need to add/modify anything
-
-# CloudWatch logs for all services
 module "monitoring" {
   source = "../../modules/monitoring"
 
@@ -88,7 +97,6 @@ module "monitoring" {
   tags = var.tags
 }
 
-# ECS cluster with service discovery (so services can talk to each other by name)
 module "ecs_cluster" {
   source = "../../modules/ecs/cluster"
 
@@ -102,33 +110,6 @@ module "ecs_cluster" {
   tags = var.tags
 }
 
-# SSL cert - can create one here or use an existing ARN
-# Uncomment below if you want Terraform to create the cert (needs DNS validation)
-# resource "aws_acm_certificate" "main" {
-#   count            = var.acm_certificate_arn == "" ? 1 : 0
-#   domain_name      = var.domain
-#   validation_method = "DNS"
-#
-#   subject_alternative_names = [
-#     var.api_domain,
-#     var.login_domain,
-#     var.base_domain,
-#     "*.${var.base_domain}"
-#   ]
-#
-#   lifecycle {
-#     create_before_destroy = true
-#   }
-#
-#   tags = merge(
-#     var.tags,
-#     {
-#       Name = "${var.cluster_name}-cert"
-#     }
-#   )
-# }
-
-# Load balancer - routes traffic to the right services
 module "alb" {
   source = "../../modules/ecs/alb"
 
@@ -145,15 +126,13 @@ module "alb" {
   login_domain               = var.login_domain
   base_domain                = var.base_domain
 
-  # depends_on = [aws_acm_certificate.main]  # disabled - no cert yet
-
   tags = var.tags
 }
 
-# Task definitions - these define what containers run and how they're configured
-# Env vars come from SSM Parameter Store (see ssm-parameters.tf)
+# ============================================================================
+# Task Definitions
+# ============================================================================
 
-# App service - main frontend
 module "task_app" {
   source = "../../modules/ecs/task"
 
@@ -164,10 +143,9 @@ module "task_app" {
   execution_role_arn = module.iam.ecs_execution_role_arn
   task_role_arn      = module.iam.ecs_task_role_arn
   container_definitions = jsonencode([{
-    name      = "app"
-    image     = local.app_image_uri
-    essential = true
-    # Startup command - uses service discovery namespace to find other services
+    name       = "app"
+    image      = local.app_image_uri
+    essential  = true
     entryPoint = ["/bin/bash", "-c"]
     command = [
       "cd /var/www/ && dockerize -template /etc/nginx/conf.d/api.tmpl:/etc/nginx/conf.d/api.conf -template /etc/nginx/conf.d/auth.tmpl:/etc/nginx/conf.d/auth.conf -template /etc/nginx/conf.d/core.tmpl:/etc/nginx/conf.d/core.conf -template /var/www/Core/webroot/js/config.js.tmpl:/var/www/Core/webroot/js/config.js && if [ -n \"$${SERVICE_DISCOVERY_NAMESPACE}\" ]; then sed -i \"s|http://api2|http://api2.$${SERVICE_DISCOVERY_NAMESPACE}|g\" /etc/nginx/conf.d/core.conf && sed -i \"s|http://canvas|http://canvas.$${SERVICE_DISCOVERY_NAMESPACE}|g\" /etc/nginx/conf.d/core.conf && sed -i \"s|http://urltopng:3000|http://urltopng.$${SERVICE_DISCOVERY_NAMESPACE}:3000|g\" /etc/nginx/conf.d/core.conf && sed -i \"s|http://api/|http://api2.$${SERVICE_DISCOVERY_NAMESPACE}/|g\" /etc/nginx/conf.d/core.conf; fi && until nc -z \"$${MYSQL_HOST}\" 3306; do echo \"$$(date) - waiting for mysql at $${MYSQL_HOST}...\"; sleep 1; done && /usr/bin/supervisord -n -c /etc/supervisord.conf"
@@ -176,7 +154,6 @@ module "task_app" {
       containerPort = 80
       protocol      = "tcp"
     }]
-    # Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -189,7 +166,6 @@ module "task_app" {
         { name = "LOGIN_DOMAIN", value = var.login_domain },
         { name = "BASE_DOMAIN", value = var.base_domain },
         { name = "SCHEME", value = var.acm_certificate_arn != "" ? "https" : "http" },
-        # Critical BASE_URI variables (required by application)
         { name = "BASE_URI", value = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.domain}" },
         { name = "API2_BASE_URI", value = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.domain}/api" },
         { name = "LOGIN_BASE_URI", value = "${var.acm_certificate_arn != "" ? "https" : "http"}://${var.login_domain}" },
@@ -200,7 +176,7 @@ module "task_app" {
         { name = "MYSQL_USER", value = var.database_user },
         { name = "MYSQL_PASSWORD", value = var.database_password },
         { name = "MYSQL_DATABASE", value = var.database_name },
-      ], var.mongodb_host != "" ? [
+        ], var.mongodb_host != "" ? [
         { name = "MONGO_HOST", value = var.mongodb_host },
         { name = "MONGO_USER", value = var.mongodb_user },
         { name = "MONGO_PASSWORD", value = var.mongodb_password },
@@ -212,7 +188,7 @@ module "task_app" {
         { name = "DEBUG", value = "0" },
         { name = "APP_DEBUG", value = "false" },
         { name = "SHOW_EXCEPTIONS", value = "false" },
-      ], var.twilio_sid != "" ? [
+        ], var.twilio_sid != "" ? [
         { name = "TWILIO_SID", value = var.twilio_sid },
         { name = "TWILIO_TOKEN", value = var.twilio_token },
         { name = "TWILIO_MSG_SERVICE_SID", value = var.twilio_msg_service_sid },
@@ -228,21 +204,17 @@ module "task_app" {
       }
     }
     healthCheck = {
-      # Use /favicon.ico which returns 204 (No Content) - doesn't require PHP processing
-      # This checks if nginx is responding, which is sufficient for container health
-      # The ALB health check will verify the actual application endpoint
       command     = ["CMD-SHELL", "curl -f http://localhost:80/favicon.ico || exit 1"]
       interval    = 30
       timeout     = 5
       retries     = 3
-      startPeriod = 90  # Increased to allow more time for PHP-FPM to start
+      startPeriod = 90
     }
   }])
 
   tags = var.tags
 }
 
-# API2 service - REST API
 module "task_api2" {
   source = "../../modules/ecs/task"
 
@@ -260,7 +232,6 @@ module "task_api2" {
       containerPort = 80
       protocol      = "tcp"
     }]
-    # Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -275,7 +246,7 @@ module "task_api2" {
         { name = "MYSQL_USER", value = var.database_user },
         { name = "MYSQL_PASSWORD", value = var.database_password },
         { name = "MYSQL_DATABASE", value = var.database_name },
-      ], var.mongodb_host != "" ? [
+        ], var.mongodb_host != "" ? [
         { name = "MONGO_HOST", value = var.mongodb_host },
         { name = "MONGO_USER", value = var.mongodb_user },
         { name = "MONGO_PASSWORD", value = var.mongodb_password },
@@ -287,7 +258,7 @@ module "task_api2" {
         { name = "DEBUG", value = "0" },
         { name = "APP_DEBUG", value = "false" },
         { name = "SHOW_EXCEPTIONS", value = "false" },
-      ], var.twilio_sid != "" ? [
+        ], var.twilio_sid != "" ? [
         { name = "TWILIO_SID", value = var.twilio_sid },
         { name = "TWILIO_TOKEN", value = var.twilio_token },
         { name = "TWILIO_MSG_SERVICE_SID", value = var.twilio_msg_service_sid },
@@ -314,7 +285,6 @@ module "task_api2" {
   tags = var.tags
 }
 
-# Worker service - handles background jobs
 module "task_worker" {
   source = "../../modules/ecs/task"
 
@@ -335,7 +305,6 @@ module "task_worker" {
       "php",
       "/Domain/src/Infrastructure/Console/process-job.php"
     ]
-    # ECR doesn't need creds (IAM), Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -358,7 +327,6 @@ module "task_worker" {
   tags = var.tags
 }
 
-# Canvas service - image processing
 module "task_canvas" {
   source = "../../modules/ecs/task"
 
@@ -376,7 +344,6 @@ module "task_canvas" {
       containerPort = 80
       protocol      = "tcp"
     }]
-    # Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -397,7 +364,6 @@ module "task_canvas" {
   tags = var.tags
 }
 
-# URL to PNG service - generates screenshots
 module "task_urltopng" {
   source = "../../modules/ecs/task"
 
@@ -415,7 +381,6 @@ module "task_urltopng" {
       containerPort = 3000
       protocol      = "tcp"
     }]
-    # Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -445,7 +410,6 @@ module "task_urltopng" {
   tags = var.tags
 }
 
-# Gearman server - job queue
 module "task_gearman" {
   source = "../../modules/ecs/task"
 
@@ -463,7 +427,6 @@ module "task_gearman" {
       containerPort = 4730
       protocol      = "tcp"
     }]
-    # Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -483,7 +446,6 @@ module "task_gearman" {
   tags = var.tags
 }
 
-# Scheduler service - runs cron jobs
 module "task_scheduler" {
   source = "../../modules/ecs/task"
 
@@ -512,7 +474,6 @@ module "task_scheduler" {
       containerPort = 4000
       protocol      = "tcp"
     }]
-    # Docker Hub needs Secrets Manager
     repositoryCredentials = var.use_ecr ? null : (local.dockerhub_secret_arn != "" ? {
       credentialsParameter = local.dockerhub_secret_arn
     } : null)
@@ -533,13 +494,13 @@ module "task_scheduler" {
   tags = var.tags
 }
 
-# ECS services - these run the tasks and handle scaling
-# Each service connects to the ALB and can auto-scale based on CPU/memory
+# ============================================================================
+# ECS Services
+# ============================================================================
 
-# App service
 module "service_app" {
   source = "../../modules/ecs/service"
- 
+
   cluster_id          = module.ecs_cluster.cluster_id
   cluster_name        = var.cluster_name
   service_name        = "${var.cluster_name}-app"
@@ -562,7 +523,6 @@ module "service_app" {
   tags = var.tags
 }
 
-# API2 Service
 module "service_api2" {
   source = "../../modules/ecs/service"
 
@@ -591,7 +551,6 @@ module "service_api2" {
   tags = var.tags
 }
 
-# Worker Service
 module "service_worker" {
   source = "../../modules/ecs/service"
 
@@ -613,7 +572,6 @@ module "service_worker" {
   tags = var.tags
 }
 
-# Canvas Service
 module "service_canvas" {
   source = "../../modules/ecs/service"
 
@@ -639,7 +597,6 @@ module "service_canvas" {
   tags = var.tags
 }
 
-# URL to PNG Service
 module "service_urltopng" {
   source = "../../modules/ecs/service"
 
@@ -665,7 +622,6 @@ module "service_urltopng" {
   tags = var.tags
 }
 
-# Gearman Server Service
 module "service_gearman" {
   source = "../../modules/ecs/service"
 
@@ -684,7 +640,6 @@ module "service_gearman" {
   tags = var.tags
 }
 
-# Scheduler Service
 module "service_scheduler" {
   source = "../../modules/ecs/service"
 

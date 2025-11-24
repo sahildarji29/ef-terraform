@@ -4,7 +4,6 @@ resource "aws_security_group" "gearman" {
   description = "Security group for gearman-server service"
   vpc_id      = var.vpc_id
 
-  # Gearman port from workers
   ingress {
     description     = "Gearman from workers"
     from_port       = 4730
@@ -13,7 +12,6 @@ resource "aws_security_group" "gearman" {
     security_groups = [aws_security_group.worker.id]
   }
 
-  # Allow communication with other gearman instances (if multiple)
   ingress {
     description = "From other gearman instances"
     from_port   = 0

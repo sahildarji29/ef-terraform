@@ -39,14 +39,12 @@ output "scheduler_security_group_id" {
   value       = aws_security_group.scheduler.id
 }
 
-# Legacy outputs for backward compatibility (deprecated - use service-specific outputs)
 output "ecs_tasks_security_group_id" {
-  description = "Security group ID for ECS tasks (deprecated - use app_security_group_id)"
+  description = "Security group ID for ECS tasks (alias for app_security_group_id)"
   value       = aws_security_group.app.id
 }
 
 output "ecs_internal_security_group_id" {
-  description = "Security group ID for internal ECS services (deprecated - use service-specific outputs)"
+  description = "Security group ID for internal ECS services (alias for worker_security_group_id)"
   value       = aws_security_group.worker.id
 }
-

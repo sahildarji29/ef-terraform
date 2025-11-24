@@ -20,9 +20,6 @@ resource "aws_security_group" "app" {
     security_groups = [aws_security_group.alb.id]
   }
 
-  # API2 comms handled by API2's SG allowing from app
-
-  # Allow app instances to talk to each other
   ingress {
     description = "From other app instances"
     from_port   = 0

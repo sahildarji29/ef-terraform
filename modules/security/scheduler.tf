@@ -4,7 +4,6 @@ resource "aws_security_group" "scheduler" {
   description = "Security group for scheduler service"
   vpc_id      = var.vpc_id
 
-  # Scheduler API port from app/api2 services
   ingress {
     description     = "Scheduler API from app service"
     from_port       = 4000
@@ -21,7 +20,6 @@ resource "aws_security_group" "scheduler" {
     security_groups = [aws_security_group.api2.id]
   }
 
-  # Allow communication with other scheduler instances
   ingress {
     description = "From other scheduler instances"
     from_port   = 0

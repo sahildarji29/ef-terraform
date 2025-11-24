@@ -26,12 +26,12 @@ output "alb_zone_id" {
 output "service_names" {
   description = "Names of all ECS services"
   value = {
-    app    = module.service_app.service_name
-    api2   = module.service_api2.service_name
-    worker = module.service_worker.service_name
-    canvas = module.service_canvas.service_name
-    urltopng = module.service_urltopng.service_name
-    gearman = module.service_gearman.service_name
+    app       = module.service_app.service_name
+    api2      = module.service_api2.service_name
+    worker    = module.service_worker.service_name
+    canvas    = module.service_canvas.service_name
+    urltopng  = module.service_urltopng.service_name
+    gearman   = module.service_gearman.service_name
     scheduler = module.service_scheduler.service_name
   }
 }
@@ -44,8 +44,8 @@ output "service_discovery_namespace" {
 output "security_group_ids" {
   description = "Security group IDs"
   value = {
-    alb     = module.security.alb_security_group_id
-    ecs     = module.security.ecs_tasks_security_group_id
+    alb      = module.security.alb_security_group_id
+    ecs      = module.security.ecs_tasks_security_group_id
     internal = module.security.ecs_internal_security_group_id
   }
 }
@@ -54,9 +54,4 @@ output "log_groups" {
   description = "CloudWatch log group names"
   value       = module.monitoring.log_group_names
 }
-
-# output "certificate_arn" {
-#   description = "ARN of the ACM certificate"
-#   value       = local.certificate_arn
-# }  # COMMENTED OUT (no certificate/domain yet)
 

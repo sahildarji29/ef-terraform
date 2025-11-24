@@ -5,7 +5,7 @@ variable "aws_region" {
 }
 
 variable "environment" {
-  description = "Environment name (prod, prelive, dev)"
+  description = "Environment name (e.g., prod, staging, dev)"
   type        = string
 }
 
@@ -77,7 +77,6 @@ variable "urltopng_scale" {
 }
 
 # Docker Images
-# Container images for each service - specify full image URI (registry/image:tag)
 variable "app_image" {
   description = "Docker image URI for app service (e.g., your-registry/app:latest)"
   type        = string

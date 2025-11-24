@@ -4,7 +4,6 @@ resource "aws_security_group" "canvas" {
   description = "Security group for canvas service"
   vpc_id      = var.vpc_id
 
-  # Allow communication from app service
   ingress {
     description     = "From app service"
     from_port       = 80
@@ -13,7 +12,6 @@ resource "aws_security_group" "canvas" {
     security_groups = [aws_security_group.app.id]
   }
 
-  # Allow communication with other canvas instances
   ingress {
     description = "From other canvas instances"
     from_port   = 0

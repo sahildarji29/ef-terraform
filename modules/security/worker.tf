@@ -4,10 +4,6 @@ resource "aws_security_group" "worker" {
   description = "Security group for process-job-worker service"
   vpc_id      = var.vpc_id
 
-  # Note: Workers make outbound connections to app/api2 (egress is allowed)
-  # Workers don't need ingress from app/api2 - they pull jobs from Gearman
-
-  # Allow communication with other workers
   ingress {
     description = "From other worker instances"
     from_port   = 0
@@ -15,9 +11,6 @@ resource "aws_security_group" "worker" {
     protocol    = "tcp"
     self        = true
   }
-
-  # Note: Workers connect TO gearman server, so gearman security group allows from workers
-  # No need for ingress rule here - workers initiate the connection
 
   egress {
     description = "Allow all outbound"

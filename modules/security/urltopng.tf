@@ -4,7 +4,6 @@ resource "aws_security_group" "urltopng" {
   description = "Security group for urltopng service"
   vpc_id      = var.vpc_id
 
-  # Allow communication from app service
   ingress {
     description     = "From app service"
     from_port       = 3000
@@ -13,7 +12,6 @@ resource "aws_security_group" "urltopng" {
     security_groups = [aws_security_group.app.id]
   }
 
-  # Allow communication with other urltopng instances
   ingress {
     description = "From other urltopng instances"
     from_port   = 0

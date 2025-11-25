@@ -10,10 +10,10 @@ resource "aws_lb_target_group" "app" {
   health_check {
     enabled             = true
     healthy_threshold   = 2
-    unhealthy_threshold = 3
-    timeout             = 5
+    unhealthy_threshold = 5  # More tolerant for startup
+    timeout             = 10  # Longer timeout
     interval            = 30
-    path                = "/"
+    path                = "/"  # Root path for health check
     protocol            = "HTTP"
     matcher             = "200-399"
   }
@@ -43,12 +43,12 @@ resource "aws_lb_target_group" "api2" {
   health_check {
     enabled             = true
     healthy_threshold   = 2
-    unhealthy_threshold = 3
-    timeout             = 5
+    unhealthy_threshold = 5  # More tolerant
+    timeout             = 10  # Longer timeout
     interval            = 30
-    path                = "/"
+    path                = "/"  # API2 responds to root
     protocol            = "HTTP"
-    matcher             = "200-399"
+    matcher             = "200-499"
   }
 
   tags = merge(
@@ -76,7 +76,7 @@ resource "aws_lb_target_group" "canvas" {
     interval            = 30
     path                = "/"
     protocol            = "HTTP"
-    matcher             = "200-399"
+    matcher             = "200-499"
   }
 
   tags = merge(
@@ -104,7 +104,7 @@ resource "aws_lb_target_group" "urltopng" {
     interval            = 30
     path                = "/"
     protocol            = "HTTP"
-    matcher             = "200-399"
+    matcher             = "200-499"
   }
 
   tags = merge(

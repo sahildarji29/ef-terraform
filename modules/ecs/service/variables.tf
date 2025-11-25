@@ -118,6 +118,12 @@ variable "scale_out_cooldown" {
   default     = 60
 }
 
+variable "health_check_grace_period_seconds" {
+  description = "Health check grace period in seconds (time before ALB starts health checks after task starts). Should be >= container startPeriod."
+  type        = number
+  default     = 120
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)

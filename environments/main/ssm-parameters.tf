@@ -240,68 +240,61 @@ locals {
   #
   # Define which parameters each ECS service needs access to
 
-  app_parameter_keys = concat(
-    [
-      "EF_ENV",
-      "CLUSTER",
-      "DOMAIN",
-      "API_DOMAIN",
-      "LOGIN_DOMAIN",
-      "BASE_DOMAIN",
-      "SCHEME",
-      "SERVICE_DISCOVERY_NAMESPACE",
-      "APP_ENV",
-      "MYSQL_HOST",
-      "MYSQL_USER",
-      "MYSQL_PASSWORD",
-      "MYSQL_DATABASE",
-      "BASE_URI",
-      "API2_BASE_URI",
-      "LOGIN_BASE_URI",
-      "SCHEDULER_BASE_URI",
-      "GEARMAN_BASE_URI",
-      "DEBUG",
-      "APP_DEBUG",
-      "SHOW_EXCEPTIONS",
-    ],
-    var.twilio_sid != "" ? [
-      "TWILIO_SID",
-      "TWILIO_TOKEN",
-      "TWILIO_MSG_SERVICE_SID",
-      "TWILIO_MSG_STATUS_CALLBACK_URL",
-    ] : [],
-    var.mongodb_host != "" ? [
-      "MONGO_HOST",
-      "MONGO_USER",
-      "MONGO_PASSWORD",
-      "MONGO_DATABASE",
-      "MONGO_EMAIL_DATABASE",
-    ] : []
-  )
+  # App service - list all parameters it needs
+  # If parameter doesn't exist in SSM, it will be automatically filtered out
+  app_parameter_keys = [
+    "EF_ENV",
+    "CLUSTER",
+    "DOMAIN",
+    "API_DOMAIN",
+    "LOGIN_DOMAIN",
+    "BASE_DOMAIN",
+    "SCHEME",
+    "SERVICE_DISCOVERY_NAMESPACE",
+    "APP_ENV",
+    "MYSQL_HOST",
+    "MYSQL_USER",
+    "MYSQL_PASSWORD",
+    "MYSQL_DATABASE",
+    "BASE_URI",
+    "API2_BASE_URI",
+    "LOGIN_BASE_URI",
+    "SCHEDULER_BASE_URI",
+    "GEARMAN_BASE_URI",
+    "DEBUG",
+    "APP_DEBUG",
+    "SHOW_EXCEPTIONS",
+    "TWILIO_SID",
+    "TWILIO_TOKEN",
+    "TWILIO_MSG_SERVICE_SID",
+    "TWILIO_MSG_STATUS_CALLBACK_URL",
+    "MONGO_HOST",
+    "MONGO_USER",
+    "MONGO_PASSWORD",
+    "MONGO_DATABASE",
+    "MONGO_EMAIL_DATABASE",
+  ]
 
-  api2_parameter_keys = concat(
-    [
-      "EF_ENV",
-      "CLUSTER",
-      "API_DOMAIN",
-      "APP_ENV",
-      "MYSQL_HOST",
-      "MYSQL_USER",
-      "MYSQL_PASSWORD",
-      "MYSQL_DATABASE",
-      "BASE_URI",
-      "API2_BASE_URI",
-      "DEBUG",
-      "APP_DEBUG",
-      "SHOW_EXCEPTIONS",
-    ],
-    var.twilio_sid != "" ? [
-      "TWILIO_SID",
-      "TWILIO_TOKEN",
-      "TWILIO_MSG_SERVICE_SID",
-      "TWILIO_MSG_STATUS_CALLBACK_URL",
-    ] : []
-  )
+  # API2 service - list all parameters it needs
+  api2_parameter_keys = [
+    "EF_ENV",
+    "CLUSTER",
+    "API_DOMAIN",
+    "APP_ENV",
+    "MYSQL_HOST",
+    "MYSQL_USER",
+    "MYSQL_PASSWORD",
+    "MYSQL_DATABASE",
+    "BASE_URI",
+    "API2_BASE_URI",
+    "DEBUG",
+    "APP_DEBUG",
+    "SHOW_EXCEPTIONS",
+    "TWILIO_SID",
+    "TWILIO_TOKEN",
+    "TWILIO_MSG_SERVICE_SID",
+    "TWILIO_MSG_STATUS_CALLBACK_URL",
+  ]
 
   worker_parameter_keys = [
     "EF_ENV",
@@ -373,11 +366,14 @@ locals {
     for k, v in aws_ssm_parameter.parameter : k => v.name
   }
 
+  # Build secrets arrays - automatically filter out parameters that don't exist
+  # If a parameter is null in ssm_parameters, it won't be in parameter_names, so it's skipped
   app_secrets = [
     for key in local.app_parameter_keys : {
       name      = key
       valueFrom = local.parameter_names[key]
     }
+    if contains(keys(local.parameter_names), key)
   ]
 
   api2_secrets = [
@@ -385,6 +381,7 @@ locals {
       name      = key
       valueFrom = local.parameter_names[key]
     }
+    if contains(keys(local.parameter_names), key)
   ]
 
   worker_secrets = [
@@ -392,6 +389,7 @@ locals {
       name      = key
       valueFrom = local.parameter_names[key]
     }
+    if contains(keys(local.parameter_names), key)
   ]
 
   canvas_secrets = [
@@ -399,6 +397,7 @@ locals {
       name      = key
       valueFrom = local.parameter_names[key]
     }
+    if contains(keys(local.parameter_names), key)
   ]
 
   urltopng_secrets = [
@@ -406,6 +405,7 @@ locals {
       name      = key
       valueFrom = local.parameter_names[key]
     }
+    if contains(keys(local.parameter_names), key)
   ]
 
   scheduler_secrets = [
@@ -413,6 +413,7 @@ locals {
       name      = key
       valueFrom = local.parameter_names[key]
     }
+    if contains(keys(local.parameter_names), key)
   ]
 
   gearman_secrets = [
@@ -420,6 +421,7 @@ locals {
       name      = key
       valueFrom = local.parameter_names[key]
     }
+    if contains(keys(local.parameter_names), key)
   ]
 }
 

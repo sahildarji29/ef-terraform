@@ -6,6 +6,10 @@ resource "aws_ecs_service" "main" {
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
 
+  # Health check grace period: time to wait before starting ALB health checks
+  # Should be >= container startPeriod to allow containers to fully start
+  health_check_grace_period_seconds = var.target_group_arn != "" ? var.health_check_grace_period_seconds : null
+
   network_configuration {
     subnets          = var.subnet_ids
     security_groups  = var.security_group_ids

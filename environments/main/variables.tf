@@ -1,7 +1,7 @@
 variable "aws_region" {
   description = "AWS region for resources"
   type        = string
-  default     = "us-east-2"
+  default     = "us-west-2"
 }
 
 variable "environment" {
@@ -257,9 +257,9 @@ variable "min_capacity" {
   description = "Minimum capacity for auto scaling"
   type        = map(number)
   default = {
-    app    = 2
-    api2   = 2
-    worker = 5
+    app    = 1
+    api2   = 1
+    worker = 1
   }
 }
 
@@ -267,10 +267,34 @@ variable "max_capacity" {
   description = "Maximum capacity for auto scaling"
   type        = map(number)
   default = {
-    app    = 10
-    api2   = 10
-    worker = 50
+    app    = 4
+    api2   = 4
+    worker = 4
   }
+}
+
+variable "target_cpu_utilization" {
+  description = "Target CPU utilization percentage for auto scaling"
+  type        = number
+  default     = 70.0
+}
+
+variable "target_memory_utilization" {
+  description = "Target memory utilization percentage for auto scaling"
+  type        = number
+  default     = 70.0
+}
+
+variable "scale_in_cooldown" {
+  description = "Scale in cooldown period in seconds"
+  type        = number
+  default     = 300
+}
+
+variable "scale_out_cooldown" {
+  description = "Scale out cooldown period in seconds"
+  type        = number
+  default     = 60
 }
 
 # Security

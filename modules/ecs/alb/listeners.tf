@@ -29,10 +29,126 @@ resource "aws_lb_listener" "http" {
   }
 }
 
+# Domain-based Routing Rules (Host Header)
+# These have higher priority than path-based rules
+# Domain routing is checked first, then path-based routing
+
+# Listener Rule: API Domain → API2 service
+resource "aws_lb_listener_rule" "api_domain_http" {
+  count = var.enable_https && var.redirect_http_to_https ? 0 : 1
+
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 1  # Highest priority for domain routing
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api2.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.api_domain]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "api_domain_https" {
+  count = var.enable_https && var.certificate_arn != "" ? 1 : 0
+
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 1  # Highest priority for domain routing
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api2.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.api_domain]
+    }
+  }
+}
+
+# Listener Rule: Login Domain → App service
+resource "aws_lb_listener_rule" "login_domain_http" {
+  count = var.enable_https && var.redirect_http_to_https ? 0 : 1
+
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 2
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.login_domain]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "login_domain_https" {
+  count = var.enable_https && var.certificate_arn != "" ? 1 : 0
+
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 2
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.login_domain]
+    }
+  }
+}
+
+# Listener Rule: Main Domain → App service
+resource "aws_lb_listener_rule" "main_domain_http" {
+  count = var.enable_https && var.redirect_http_to_https ? 0 : 1
+
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 3
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.domain]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "main_domain_https" {
+  count = var.enable_https && var.certificate_arn != "" ? 1 : 0
+
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 3
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.domain]
+    }
+  }
+}
+
 # Path-based Routing Rules
 # These work on both HTTP and HTTPS listeners
+# Lower priority (higher numbers) - checked after domain routing
 
-# Listener Rule: API v2 Path (/api/v2/*) → API2 service (highest priority for specific API)
+# Listener Rule: API v2 Path (/api/v2/*) → API2 service
 # Create on HTTP listener (when redirect is disabled)
 resource "aws_lb_listener_rule" "api_v2_http" {
   count = var.enable_https && var.redirect_http_to_https ? 0 : 1

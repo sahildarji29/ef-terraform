@@ -441,6 +441,7 @@ module "service_app" {
   container_name                  = "app"
   container_port                  = 80
   health_check_grace_period_seconds = 120  # Container startPeriod is 90s, add buffer
+  enable_execute_command            = true  # Enable ECS Exec for debugging
   enable_auto_scaling             = var.enable_auto_scaling
   min_capacity                    = var.min_capacity["app"]
   max_capacity                    = var.max_capacity["app"]
@@ -471,6 +472,7 @@ module "service_api2" {
   container_name                  = "api2"
   container_port                  = 80
   health_check_grace_period_seconds = 90  # Container startPeriod is 60s, add buffer
+  enable_execute_command            = true  # Enable ECS Exec for debugging
   enable_service_discovery        = var.enable_service_discovery
   service_discovery_namespace_id  = module.ecs_cluster.service_discovery_namespace_id
   service_discovery_name          = "api2"
@@ -500,6 +502,7 @@ module "service_worker" {
   subnet_ids                     = module.network.private_subnet_ids
   security_group_ids             = [module.security.worker_security_group_id]
   assign_public_ip               = false
+  enable_execute_command         = true  # Enable ECS Exec for debugging
   enable_service_discovery       = var.enable_service_discovery
   service_discovery_namespace_id = module.ecs_cluster.service_discovery_namespace_id
   service_discovery_name         = "process-job-worker"
@@ -529,6 +532,7 @@ module "service_canvas" {
   container_name                  = "canvas"
   container_port                  = 80
   health_check_grace_period_seconds = 90  # Default buffer for canvas startup
+  enable_execute_command            = true  # Enable ECS Exec for debugging
   enable_service_discovery        = var.enable_service_discovery
   service_discovery_namespace_id  = module.ecs_cluster.service_discovery_namespace_id
   service_discovery_name          = "canvas"
@@ -555,6 +559,7 @@ module "service_urltopng" {
   container_name                  = "urltopng"
   container_port                  = 3000
   health_check_grace_period_seconds = 90  # Container startPeriod is 60s, add buffer
+  enable_execute_command            = true  # Enable ECS Exec for debugging
   enable_service_discovery        = var.enable_service_discovery
   service_discovery_namespace_id  = module.ecs_cluster.service_discovery_namespace_id
   service_discovery_name          = "urltopng"
@@ -577,6 +582,7 @@ module "service_gearman" {
   subnet_ids                     = module.network.private_subnet_ids
   security_group_ids             = [module.security.gearman_security_group_id]
   assign_public_ip               = false
+  enable_execute_command         = true  # Enable ECS Exec for debugging
   enable_service_discovery       = var.enable_service_discovery
   service_discovery_namespace_id = module.ecs_cluster.service_discovery_namespace_id
   service_discovery_name         = "gearman-server"
@@ -595,6 +601,7 @@ module "service_scheduler" {
   subnet_ids                     = module.network.private_subnet_ids
   security_group_ids             = [module.security.scheduler_security_group_id]
   assign_public_ip               = false
+  enable_execute_command         = true  # Enable ECS Exec for debugging
   enable_service_discovery       = var.enable_service_discovery
   service_discovery_namespace_id = module.ecs_cluster.service_discovery_namespace_id
   service_discovery_name         = "scheduler"

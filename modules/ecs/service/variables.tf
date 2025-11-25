@@ -124,6 +124,12 @@ variable "health_check_grace_period_seconds" {
   default     = 120
 }
 
+variable "enable_execute_command" {
+  description = "Enable ECS Exec for running commands in containers (requires IAM permissions)"
+  type        = bool
+  default     = true
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)

@@ -67,13 +67,13 @@ variable "api2_scale" {
 variable "worker_scale" {
   description = "Desired count for process-job-worker service"
   type        = number
-  default     = 20
+  default     = 4
 }
 
 variable "urltopng_scale" {
   description = "Desired count for urltopng service"
   type        = number
-  default     = 2
+  default     = 4
 }
 
 # Docker Images

@@ -6,6 +6,9 @@ resource "aws_ecs_service" "main" {
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
 
+  # Enable ECS Exec for running commands in containers
+  enable_execute_command = var.enable_execute_command
+
   # Health check grace period: time to wait before starting ALB health checks
   # Should be >= container startPeriod to allow containers to fully start
   health_check_grace_period_seconds = var.target_group_arn != "" ? var.health_check_grace_period_seconds : null

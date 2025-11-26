@@ -1,20 +1,4 @@
 # SSM Parameter Store - Environment Variables and Secrets
-#
-# Simple rule: If you add a variable here, it will be created in SSM and injected into the container.
-# If you don't add it, it won't exist. That's it!
-#
-# All parameters are stored as SecureString (encrypted) in AWS SSM Parameter Store.
-#
-# To add a new environment variable:
-#   1. Find the service block (app, api2, worker, etc.)
-#   2. Add your variable with value and description
-#   3. Done!
-#
-# Example:
-#   "NEW_API_KEY" = {
-#     value       = var.new_api_key
-#     description = "API key for new service"
-#   }
 
 locals {
   # Shared/common parameters used by multiple services
@@ -107,7 +91,6 @@ locals {
       value       = "false"
       description = "Show exceptions flag"
     }
-    # Add Twilio variables only if you need them - if not, just remove these lines
     "TWILIO_SID" = {
       value       = var.twilio_sid
       description = "Twilio Account SID"
@@ -124,7 +107,6 @@ locals {
       value       = var.twilio_msg_status_callback_url
       description = "Twilio message status callback URL"
     }
-    # Add MongoDB variables only if you need them - if not, just remove these lines
     "MONGO_HOST" = {
       value       = var.mongodb_host
       description = "MongoDB host"
@@ -275,7 +257,7 @@ resource "aws_ssm_parameter" "parameter" {
   for_each = local.all_env_vars
 
   name  = "${local.parameter_prefix}/${each.key}"
-  type  = "SecureString"  # All env vars are encrypted - no exceptions
+  type  = "SecureString" # All env vars are encrypted - no exceptions
   value = each.value.value
 
   description = try(each.value.description, "Environment variable for ${var.cluster_name} cluster")

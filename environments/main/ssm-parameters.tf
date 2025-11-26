@@ -202,6 +202,11 @@ locals {
       type        = "SecureString"
       description = "AWS region for S3 storage"
     }
+    "AWS_BUCKET" = {
+      value       = var.urltopng_s3_bucket
+      type        = "SecureString"
+      description = "S3 bucket name for urltopng service"
+    }
     "PUPPETEER_WAIT_UNTIL" = {
       value       = "networkidle2"
       type        = "SecureString"
@@ -318,6 +323,7 @@ locals {
     "NODE_ENV",
     "STORAGE_PROVIDER",
     "AWS_REGION",
+    "AWS_BUCKET",
     "PUPPETEER_WAIT_UNTIL",
   ]
 

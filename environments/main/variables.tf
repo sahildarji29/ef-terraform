@@ -391,6 +391,12 @@ variable "mongodb_email_database" {
   default     = ""
 }
 
+variable "urltopng_s3_bucket" {
+  description = "S3 bucket name for urltopng service to store screenshots"
+  type        = string
+  default     = "screenpreview.eventfarm"
+}
+
 variable "tags" {
   description = "Common tags for all resources"
   type        = map(string)

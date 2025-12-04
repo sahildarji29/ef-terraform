@@ -25,11 +25,6 @@ variable "public_subnet_ids" {
   type        = list(string)
 }
 
-variable "private_subnet_ids" {
-  description = "List of private subnet IDs for ECS tasks"
-  type        = list(string)
-}
-
 # Domain Configuration
 variable "domain" {
   description = "Main application domain (e.g., app.example.com)"
@@ -420,4 +415,3 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
-

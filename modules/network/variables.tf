@@ -8,10 +8,6 @@ variable "public_subnet_ids" {
   type        = list(string)
 }
 
-variable "private_subnet_ids" {
-  description = "List of private subnet IDs"
-  type        = list(string)
-}
 
 variable "cluster_name" {
   description = "Name of the cluster (for resource naming)"

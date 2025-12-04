@@ -5,7 +5,7 @@ module "network" {
 
   vpc_id             = var.vpc_id
   public_subnet_ids  = var.public_subnet_ids
-  private_subnet_ids = var.private_subnet_ids
+
   cluster_name       = var.cluster_name
 
   tags = var.tags

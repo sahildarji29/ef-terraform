@@ -13,11 +13,6 @@ output "public_subnet_ids" {
   value       = var.public_subnet_ids
 }
 
-output "private_subnet_ids" {
-  description = "List of private subnet IDs"
-  value       = var.private_subnet_ids
-}
-
 output "public_subnets" {
   description = "Map of public subnet details"
   value = {
@@ -28,25 +23,3 @@ output "public_subnets" {
     }
   }
 }
-
-output "private_subnets" {
-  description = "Map of private subnet details"
-  value = {
-    for k, v in data.aws_subnet.private : k => {
-      id                = v.id
-      availability_zone = v.availability_zone
-      cidr_block        = v.cidr_block
-    }
-  }
-}
-
-output "nat_gateway_id" {
-  description = "ID of the NAT Gateway"
-  value       = aws_nat_gateway.main.id
-}
-
-output "nat_gateway_public_ip" {
-  description = "Public IP of the NAT Gateway"
-  value       = aws_eip.nat.public_ip
-}
-
